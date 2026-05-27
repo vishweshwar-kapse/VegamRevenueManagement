@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Layout, Menu, Avatar, Dropdown, Typography, Badge, Space, Tag } from 'antd';
+import { Layout, Menu, Avatar, Dropdown, Typography, Badge, Tag } from 'antd';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import {
   DashboardOutlined,
@@ -240,36 +240,39 @@ export default function AppLayout() {
           </div>
 
           {/* Right side */}
-          <Space size="middle">
+          <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
             {/* Notifications bell */}
             <Badge count={5} size="small">
               <BellOutlined style={{ fontSize: 18, color: '#595959', cursor: 'pointer' }} />
             </Badge>
 
+            {/* Divider */}
+            <div style={{ width: 1, height: 24, background: '#f0f0f0' }} />
+
             {/* User avatar + dropdown */}
             <Dropdown menu={{ items: userDropdownItems }} placement="bottomRight">
-              <Space style={{ cursor: 'pointer' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }}>
                 <Avatar
-                  size="small"
-                  style={{ backgroundColor: '#1a56db' }}
+                  size={34}
+                  style={{ backgroundColor: '#1a56db', flexShrink: 0 }}
                   icon={<UserOutlined />}
                 />
-                <Space direction="vertical" size={0}>
-                  <Text style={{ fontSize: 13, fontWeight: 500, lineHeight: 1.2 }}>
+                <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', lineHeight: 1 }}>
+                  <Text style={{ fontSize: 13, fontWeight: 600, color: 'rgba(0,0,0,0.85)', lineHeight: '18px' }}>
                     {user?.name}
                   </Text>
                   {roleInfo && (
                     <Tag
                       color={roleInfo.color}
-                      style={{ fontSize: 10, padding: '0 4px', lineHeight: '16px', margin: 0 }}
+                      style={{ fontSize: 10, padding: '1px 5px', margin: '3px 0 0 0', lineHeight: '14px', display: 'inline-block', width: 'fit-content' }}
                     >
                       {roleInfo.text}
                     </Tag>
                   )}
-                </Space>
-              </Space>
+                </div>
+              </div>
             </Dropdown>
-          </Space>
+          </div>
         </Header>
 
         {/* Page content */}
