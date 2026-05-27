@@ -33,8 +33,17 @@ body {
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
 }
 
-.kpi-card .ant-card-body {
-  padding: 20px;
+/* Ant Design mobile overrides */
+@media (max-width: 767px) {
+  .ant-card {
+    border-radius: 6px !important;
+  }
+  .ant-list-item {
+    padding: 8px 0 !important;
+  }
+  .ant-statistic-title {
+    font-size: 11px !important;
+  }
 }
 
 /* Status badge colors */
