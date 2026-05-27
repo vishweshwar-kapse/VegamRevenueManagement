@@ -6,6 +6,9 @@ const connectDB = async (): Promise<void> => {
     throw new Error('MONGODB_URI environment variable is not set');
   }
 
+  // Suppress Mongoose 6 → 7 migration warning
+  mongoose.set('strictQuery', true);
+
   try {
     const conn = await mongoose.connect(uri);
     console.log(`✅ MongoDB connected: ${conn.connection.host}`);
