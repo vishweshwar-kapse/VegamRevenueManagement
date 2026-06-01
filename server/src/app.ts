@@ -7,6 +7,10 @@ import path from 'path';
 import authRoutes from './routes/auth';
 import userRoutes from './routes/users';
 import customerRoutes from './routes/customers';
+import customerPlantRoutes from './routes/customerPlants';
+import forecastRoutes from './routes/forecasts';
+import dashboardRoutes from './routes/dashboard';
+import entityRoutes from './routes/entities';
 import { errorHandler, notFound } from './middleware/errorHandler';
 
 const app = express();
@@ -43,9 +47,13 @@ app.get('/api/health', (_req, res) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/customers', customerRoutes);
+app.use('/api/customer-plants', customerPlantRoutes);
+app.use('/api/entities', entityRoutes);
+app.use('/api/forecasts', forecastRoutes);
+app.use('/api/dashboard', dashboardRoutes);
 
 // TODO: Register these routes as they are built
-// app.use('/api/forecasts', forecastRoutes);
+// app.use('/api/forecasts', forecastRoutes); // already registered above
 // app.use('/api/sows', sowRoutes);
 // app.use('/api/pos', poRoutes);
 // app.use('/api/invoices', invoiceRoutes);

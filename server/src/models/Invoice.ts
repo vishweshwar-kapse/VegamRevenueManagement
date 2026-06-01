@@ -14,6 +14,7 @@ export interface IInvoiceRequest {
 export interface IInvoice extends Document {
   invoiceNumber: string;        // System-generated unique number
   customerId: mongoose.Types.ObjectId;
+  plantId?: mongoose.Types.ObjectId;    // Which plant this invoice is billed to
   poId: mongoose.Types.ObjectId;
   sowId?: mongoose.Types.ObjectId;
   invoiceDate: Date;
@@ -78,6 +79,10 @@ const InvoiceSchema = new Schema<IInvoice>(
       type: Schema.Types.ObjectId,
       ref: 'Customer',
       required: true,
+    },
+    plantId: {
+      type: Schema.Types.ObjectId,
+      ref: 'CustomerPlant',
     },
     poId: {
       type: Schema.Types.ObjectId,

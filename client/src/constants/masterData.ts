@@ -1,0 +1,127 @@
+// ─── Industries ───────────────────────────────────────────────────────────────
+
+export const INDUSTRIES = [
+  'Automotive',
+  'Aerospace & Defence',
+  'Chemicals',
+  'Construction & Real Estate',
+  'Consumer Goods & FMCG',
+  'Education',
+  'Energy & Utilities',
+  'Financial Services',
+  'Food & Beverage',
+  'Healthcare & Pharma',
+  'IT & Technology',
+  'Logistics & Supply Chain',
+  'Manufacturing',
+  'Media & Entertainment',
+  'Mining & Metals',
+  'Oil & Gas',
+  'Retail',
+  'Semiconductor',
+  'Shipping & Maritime',
+  'Steel & Heavy Industry',
+  'Telecom',
+  'Textiles & Apparel',
+  'Other',
+];
+
+// ─── Countries ────────────────────────────────────────────────────────────────
+
+export const COUNTRIES = [
+  { code: 'IN', name: 'India' },
+  { code: 'US', name: 'United States' },
+  { code: 'GB', name: 'United Kingdom' },
+  { code: 'DE', name: 'Germany' },
+  { code: 'FR', name: 'France' },
+  { code: 'NL', name: 'Netherlands' },
+  { code: 'BE', name: 'Belgium' },
+  { code: 'SE', name: 'Sweden' },
+  { code: 'NO', name: 'Norway' },
+  { code: 'DK', name: 'Denmark' },
+  { code: 'FI', name: 'Finland' },
+  { code: 'CH', name: 'Switzerland' },
+  { code: 'AT', name: 'Austria' },
+  { code: 'IT', name: 'Italy' },
+  { code: 'ES', name: 'Spain' },
+  { code: 'PT', name: 'Portugal' },
+  { code: 'PL', name: 'Poland' },
+  { code: 'CZ', name: 'Czech Republic' },
+  { code: 'AE', name: 'United Arab Emirates' },
+  { code: 'SA', name: 'Saudi Arabia' },
+  { code: 'QA', name: 'Qatar' },
+  { code: 'KW', name: 'Kuwait' },
+  { code: 'BH', name: 'Bahrain' },
+  { code: 'SG', name: 'Singapore' },
+  { code: 'MY', name: 'Malaysia' },
+  { code: 'TH', name: 'Thailand' },
+  { code: 'ID', name: 'Indonesia' },
+  { code: 'PH', name: 'Philippines' },
+  { code: 'VN', name: 'Vietnam' },
+  { code: 'JP', name: 'Japan' },
+  { code: 'KR', name: 'South Korea' },
+  { code: 'CN', name: 'China' },
+  { code: 'HK', name: 'Hong Kong' },
+  { code: 'TW', name: 'Taiwan' },
+  { code: 'AU', name: 'Australia' },
+  { code: 'NZ', name: 'New Zealand' },
+  { code: 'CA', name: 'Canada' },
+  { code: 'MX', name: 'Mexico' },
+  { code: 'BR', name: 'Brazil' },
+  { code: 'ZA', name: 'South Africa' },
+  { code: 'NG', name: 'Nigeria' },
+  { code: 'KE', name: 'Kenya' },
+  { code: 'OTHER', name: 'Other' },
+];
+
+// ─── Timezones ────────────────────────────────────────────────────────────────
+
+export const TIMEZONES = [
+  { value: 'Asia/Kolkata',        label: 'India (IST +05:30)',           region: 'Asia' },
+  { value: 'Asia/Dubai',          label: 'UAE / Gulf (GST +04:00)',       region: 'Asia' },
+  { value: 'Asia/Singapore',      label: 'Singapore (SGT +08:00)',        region: 'Asia' },
+  { value: 'Asia/Kuala_Lumpur',   label: 'Malaysia (MYT +08:00)',         region: 'Asia' },
+  { value: 'Asia/Bangkok',        label: 'Thailand (ICT +07:00)',         region: 'Asia' },
+  { value: 'Asia/Jakarta',        label: 'Indonesia (WIB +07:00)',        region: 'Asia' },
+  { value: 'Asia/Tokyo',          label: 'Japan (JST +09:00)',            region: 'Asia' },
+  { value: 'Asia/Seoul',          label: 'South Korea (KST +09:00)',      region: 'Asia' },
+  { value: 'Asia/Shanghai',       label: 'China (CST +08:00)',            region: 'Asia' },
+  { value: 'Europe/London',       label: 'UK (GMT/BST)',                  region: 'Europe' },
+  { value: 'Europe/Paris',        label: 'France / W. Europe (CET)',      region: 'Europe' },
+  { value: 'Europe/Berlin',       label: 'Germany (CET)',                 region: 'Europe' },
+  { value: 'Europe/Amsterdam',    label: 'Netherlands (CET)',             region: 'Europe' },
+  { value: 'America/New_York',    label: 'US East (EST -05:00)',          region: 'Americas' },
+  { value: 'America/Chicago',     label: 'US Central (CST -06:00)',       region: 'Americas' },
+  { value: 'America/Los_Angeles', label: 'US West (PST -08:00)',          region: 'Americas' },
+  { value: 'America/Toronto',     label: 'Canada East (EST -05:00)',      region: 'Americas' },
+  { value: 'Australia/Sydney',    label: 'Australia East (AEDT)',         region: 'Pacific' },
+  { value: 'Australia/Melbourne', label: 'Australia South (AEDT)',        region: 'Pacific' },
+  { value: 'Pacific/Auckland',    label: 'New Zealand (NZST +12:00)',     region: 'Pacific' },
+  { value: 'UTC',                 label: 'UTC (+00:00)',                  region: 'UTC' },
+];
+
+// ─── Common role suggestions for man-hour rates ───────────────────────────────
+
+export const COMMON_ROLES = [
+  'Project Manager',
+  'Senior Engineer',
+  'Engineer',
+  'Junior Engineer',
+  'Business Analyst',
+  'Technical Lead',
+  'Solution Architect',
+  'QA Engineer',
+  'Implementation Consultant',
+  'Support Engineer',
+];
+
+// ─── Currency labels ──────────────────────────────────────────────────────────
+
+export const CURRENCY_OPTIONS = [
+  { value: 'USD', label: 'USD — US Dollar' },
+  { value: 'INR', label: 'INR — Indian Rupee' },
+  { value: 'EUR', label: 'EUR — Euro' },
+  { value: 'GBP', label: 'GBP — British Pound' },
+  { value: 'SGD', label: 'SGD — Singapore Dollar' },
+  { value: 'AED', label: 'AED — UAE Dirham' },
+];

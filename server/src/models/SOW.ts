@@ -28,6 +28,7 @@ export interface ISOWVersion {
 export interface ISOW extends Document {
   sowId: string;           // Human-readable ID e.g. SOW-CUST001-2025-001
   customerId: mongoose.Types.ObjectId;
+  plantId?: mongoose.Types.ObjectId;    // Which plant this SOW is for
   forecastId?: mongoose.Types.ObjectId;
   title: string;
   description?: string;
@@ -93,6 +94,10 @@ const SOWSchema = new Schema<ISOW>(
       ref: 'Customer',
       required: true,
     },
+    plantId: {
+      type: Schema.Types.ObjectId,
+      ref: 'CustomerPlant',
+    },
     forecastId: {
       type: Schema.Types.ObjectId,
       ref: 'Forecast',
@@ -135,6 +140,7 @@ const SOWSchema = new Schema<ISOW>(
 );
 
 SOWSchema.index({ customerId: 1, status: 1 });
+SOWSchema.index({ customerId: 1, plantId: 1 });
 SOWSchema.index({ ownerId: 1 });
 SOWSchema.index({ sowId: 1 });
 

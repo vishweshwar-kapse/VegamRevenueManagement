@@ -1,44 +1,28 @@
-import { Card, Typography, Tag, List } from 'antd';
-import { SettingOutlined } from '@ant-design/icons';
+import { Routes, Route, Navigate } from 'react-router-dom';
+import { lazy, Suspense } from 'react';
+import { Spin } from 'antd';
 
-const { Title, Text } = Typography;
+const AdminHomePage      = lazy(() => import('./AdminHomePage'));
+const EntityListPage     = lazy(() => import('./EntityListPage'));
+const CustomerListPage   = lazy(() => import('./CustomerListPage'));
+const CustomerDetailPage = lazy(() => import('./CustomerDetailPage'));
+const UserListPage       = lazy(() => import('./UserListPage'));
 
-const CAPABILITIES = [
-  'User management',
-  'Role assignment',
-  'Audit logs',
-  'System configuration',
-];
+const Loader = () => (
+  <div style={{ display: 'flex', justifyContent: 'center', padding: 60 }}>
+    <Spin size="large" />
+  </div>
+);
 
 export default function AdminPage() {
   return (
-    <div>
-      <div style={{ marginBottom: 24 }}>
-        <Title level={4} style={{ margin: 0 }}>
-          <SettingOutlined /> Administration
-        </Title>
-        <Text type="secondary">User management, system configuration, and governance</Text>
-      </div>
-      <Card>
-        <div style={{ textAlign: 'center', padding: '40px 0' }}>
-          <SettingOutlined style={{ fontSize: 48, color: '#1677ff', marginBottom: 16 }} />
-          <Title level={4}>Coming Soon</Title>
-          <Text type="secondary" style={{ display: 'block', marginBottom: 24 }}>
-            This module is under active development.
-          </Text>
-          <List
-            header={<Text strong>Key Capabilities</Text>}
-            bordered
-            dataSource={CAPABILITIES}
-            renderItem={(item) => (
-              <List.Item>
-                <Tag color="blue" /> {item}
-              </List.Item>
-            )}
-            style={{ maxWidth: 500, margin: '0 auto', textAlign: 'left' }}
-          />
-        </div>
-      </Card>
-    </div>
+    <Routes>
+      <Route index element={<Suspense fallback={<Loader />}><AdminHomePage /></Suspense>} />
+      <Route path="customers" element={<Suspense fallback={<Loader />}><CustomerListPage /></Suspense>} />
+      <Route path="customers/:customerId" element={<Suspense fallback={<Loader />}><CustomerDetailPage /></Suspense>} />
+      <Route path="entities" element={<Suspense fallback={<Loader />}><EntityListPage /></Suspense>} />
+      <Route path="users" element={<Suspense fallback={<Loader />}><UserListPage /></Suspense>} />
+      <Route path="*" element={<Navigate to="/admin" replace />} />
+    </Routes>
   );
 }

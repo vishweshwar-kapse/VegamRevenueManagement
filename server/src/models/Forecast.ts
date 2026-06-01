@@ -30,7 +30,9 @@ export interface IForecastHistory {
 
 export interface IForecast extends Document {
   forecastId: string;           // Human-readable ID e.g. FCST-2025-001
+  entityId?: mongoose.Types.ObjectId; // Selling entity (our company entity)
   customerId: mongoose.Types.ObjectId;
+  plantId: mongoose.Types.ObjectId;  // Site / plant this forecast is for
   description: string;
   fy: string;                   // Primary FY e.g. "FY25-26"
   totalValue: number;
@@ -81,9 +83,18 @@ const ForecastSchema = new Schema<IForecast>(
       unique: true,
       trim: true,
     },
+    entityId: {
+      type: Schema.Types.ObjectId,
+      ref: 'Entity',
+    },
     customerId: {
       type: Schema.Types.ObjectId,
       ref: 'Customer',
+      required: true,
+    },
+    plantId: {
+      type: Schema.Types.ObjectId,
+      ref: 'CustomerPlant',
       required: true,
     },
     description: {
@@ -127,6 +138,7 @@ const ForecastSchema = new Schema<IForecast>(
 );
 
 ForecastSchema.index({ customerId: 1, fy: 1 });
+ForecastSchema.index({ plantId: 1, fy: 1 });
 ForecastSchema.index({ status: 1 });
 ForecastSchema.index({ ownerId: 1 });
 

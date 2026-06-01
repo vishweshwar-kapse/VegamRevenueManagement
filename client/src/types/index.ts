@@ -2,14 +2,45 @@
 
 export type Currency = 'USD' | 'INR' | 'EUR' | 'GBP' | 'SGD' | 'AED';
 
-export type UserRole = 'finance_admin' | 'management' | 'am_pm' | 'read_only_pm';
+export type UserRole =
+  | 'finance_admin'
+  | 'management'
+  | 'account_manager'
+  | 'project_manager'
+  | 'am_pm'
+  | 'read_only_pm';
+
+export const USER_ROLE_LABELS: Record<UserRole, string> = {
+  finance_admin: 'Finance Admin',
+  management: 'Management',
+  account_manager: 'Account Manager',
+  project_manager: 'Project Manager',
+  am_pm: 'AM / PM (Legacy)',
+  read_only_pm: 'Read-Only PM',
+};
+
+export const FORECAST_ROLES: UserRole[] = ['finance_admin', 'account_manager', 'project_manager', 'am_pm'];
+
+export type SFSModule = 'goods_receipt' | 'staging' | 'manufacturing' | 'dispatch';
+
+export const SFS_MODULE_LABELS: Record<SFSModule, string> = {
+  goods_receipt: 'Goods Receipt',
+  staging: 'Staging',
+  manufacturing: 'Manufacturing',
+  dispatch: 'Dispatch',
+};
+
+export const SFS_MODULES: SFSModule[] = ['goods_receipt', 'staging', 'manufacturing', 'dispatch'];
 
 export interface User {
+  _id: string;
   id: string;
   name: string;
   email: string;
   role: UserRole;
   isActive: boolean;
+  assignedSites: string[] | CustomerPlant[];
+  assignedCustomers: string[] | Customer[];
   createdAt: string;
   updatedAt: string;
 }
@@ -18,6 +49,33 @@ export interface AuthState {
   user: User | null;
   token: string | null;
   isAuthenticated: boolean;
+}
+
+// ─── Business Entity (seller) ─────────────────────────────────────────────────
+
+export interface Entity {
+  _id: string;
+  entityCode: string;
+  name: string;
+  legalName?: string;
+  address?: string;
+  country?: string;
+  city?: string;
+  state?: string;
+  pinCode?: string;
+  gstin?: string;
+  pan?: string;
+  vatNumber?: string;
+  taxId?: string;
+  defaultCurrency: Currency;
+  email?: string;
+  phone?: string;
+  website?: string;
+  isDefault: boolean;
+  isActive: boolean;
+  createdBy?: string | User;
+  createdAt: string;
+  updatedAt: string;
 }
 
 // ─── Customer ─────────────────────────────────────────────────────────────────
@@ -30,20 +88,88 @@ export interface ContactPerson {
   isPrimary?: boolean;
 }
 
+export interface ContractVersion {
+  _id: string;
+  version: number;
+  originalName: string;
+  storedName: string;
+  filePath: string;
+  fileSize?: number;
+  mimeType?: string;
+  isLatest: boolean;
+  uploadedBy: string | User;
+  uploadedAt: string;
+  remarks?: string;
+}
+
+export interface ManHourRate {
+  roleType: string;
+  ratePerHour: number;
+}
+
+export interface ModuleCost {
+  moduleName: SFSModule;
+  licenseCost: number;
+  notes?: string;
+}
+
+export interface CostStructure {
+  currency: Currency;
+  manHourRates: ManHourRate[];
+  sfsDeploymentCost?: number;
+  sfsDeploymentNotes?: string;
+  moduleCosts: ModuleCost[];
+  lastUpdatedBy?: string | User;
+  lastUpdatedAt?: string;
+}
+
 export interface Customer {
   _id: string;
   code: string;
   name: string;
   displayName?: string;
   industry?: string;
-  country?: string;
+  parentGroup?: string;
+  website?: string;
+  pan?: string;
   defaultCurrency: Currency;
-  creditPeriodDays: number;
-  billingAddress?: string;
-  contacts: ContactPerson[];
-  gstin?: string;
+  defaultCreditPeriodDays: number;
+  hqCountry?: string;
+  hqCity?: string;
+  corporateContacts: ContactPerson[];
+  contractVersions: ContractVersion[];
+  costStructure?: CostStructure;
   notes?: string;
   isActive: boolean;
+  createdBy?: string | User;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// ─── Customer Plant ───────────────────────────────────────────────────────────
+
+export interface CustomerPlant {
+  _id: string;
+  plantCode: string;
+  plantName: string;
+  customerId: string | Customer;
+  isDefault: boolean;
+  country: string;
+  city?: string;
+  state?: string;
+  region?: 'APAC' | 'EMEA' | 'Americas' | 'India' | 'Other';
+  timezone: string;
+  billingAddress?: string;
+  shippingAddress?: string;
+  gstin?: string;
+  vatNumber?: string;
+  taxId?: string;
+  currency?: Currency;
+  creditPeriodDays?: number;
+  contacts: ContactPerson[];
+  notes?: string;
+  isActive: boolean;
+  createdBy?: string | User;
   createdAt: string;
   updatedAt: string;
 }
@@ -64,7 +190,9 @@ export interface ForecastDistribution {
 export interface Forecast {
   _id: string;
   forecastId: string;
+  entityId?: string | Entity;
   customerId: string | Customer;
+  plantId: string | CustomerPlant;
   description: string;
   fy: string;
   totalValue: number;
@@ -80,6 +208,32 @@ export interface Forecast {
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface ForecastSummary {
+  fy: string;
+  currency: Currency;
+  totalForecastValue: number;
+  signedValue: number;
+  projectedValue: number;
+  conversionRate: number;
+  forecastCount: number;
+  quarterly: { q1: number; q2: number; q3: number; q4: number };
+  activeSites: number;
+  activeCustomers: number;
+}
+
+export interface DashboardSummary {
+  fy: string;
+  currency: Currency;
+  forecast: ForecastSummary;
+  revenueInvoiced: number;
+  revenueRealized: number;
+  outstandingReceivables: number;
+  overdueReceivables: number;
+  openSOWs: number;
+  openPOs: number;
+  alerts: ActionAlert[];
 }
 
 // ─── SOW ──────────────────────────────────────────────────────────────────────
@@ -101,6 +255,7 @@ export interface SOW {
   _id: string;
   sowId: string;
   customerId: string | Customer;
+  plantId?: string | CustomerPlant;
   forecastId?: string | Forecast;
   title: string;
   description?: string;
@@ -138,6 +293,7 @@ export interface PO {
   _id: string;
   poNumber: string;
   customerId: string | Customer;
+  plantId?: string | CustomerPlant;
   linkedSOWIds: string[];
   poDate: string;
   poValue: number;
@@ -171,6 +327,7 @@ export interface Invoice {
   _id: string;
   invoiceNumber: string;
   customerId: string | Customer;
+  plantId?: string | CustomerPlant;
   poId: string | PO;
   sowId?: string | SOW;
   invoiceDate: string;
@@ -291,8 +448,8 @@ export interface DashboardKPIs {
   overdueReceivables: number;
   cashRunway: {
     status: 'green' | 'red' | 'warning';
-    greenTill?: string;     // e.g. "Feb-27"
-    redFrom?: string;       // e.g. "Mar-27"
+    greenTill?: string;
+    redFrom?: string;
   };
   currency: Currency;
   fy: string;

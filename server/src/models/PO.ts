@@ -28,6 +28,7 @@ export interface IPOAmendment {
 export interface IPO extends Document {
   poNumber: string;             // Customer-issued PO number
   customerId: mongoose.Types.ObjectId;
+  plantId?: mongoose.Types.ObjectId;    // Which plant issued this PO
   linkedSOWIds: mongoose.Types.ObjectId[];
   poDate: Date;
   poValue: number;              // Original PO value
@@ -89,6 +90,10 @@ const POSchema = new Schema<IPO>(
       ref: 'Customer',
       required: true,
     },
+    plantId: {
+      type: Schema.Types.ObjectId,
+      ref: 'CustomerPlant',
+    },
     linkedSOWIds: [{ type: Schema.Types.ObjectId, ref: 'SOW' }],
     poDate: {
       type: Date,
@@ -148,6 +153,7 @@ POSchema.pre('save', function (next) {
 });
 
 POSchema.index({ customerId: 1, status: 1 });
+POSchema.index({ customerId: 1, plantId: 1 });
 POSchema.index({ poNumber: 1, customerId: 1 });
 
 export default mongoose.model<IPO>('PO', POSchema);

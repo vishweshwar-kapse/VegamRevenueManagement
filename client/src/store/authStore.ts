@@ -48,5 +48,7 @@ export const useHasRole = (...roles: UserRole[]) => {
 
 export const useIsFinanceAdmin = () => useHasRole('finance_admin');
 export const useIsManagement = () => useHasRole('management', 'finance_admin');
-export const useCanEditCommercial = () => useHasRole('finance_admin', 'am_pm');
+export const useCanEditCommercial = () => useHasRole('finance_admin', 'am_pm', 'account_manager', 'project_manager');
 export const useCanViewCashflow = () => useHasRole('finance_admin', 'management');
+export const useIsForecastUser = () => useHasRole('finance_admin', 'account_manager', 'project_manager', 'am_pm');
+export const useCurrentUser = () => useAuthStore((s) => s.user);

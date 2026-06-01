@@ -35,24 +35,26 @@ interface NavItem {
 }
 
 const NAV_ITEMS: NavItem[] = [
-  { key: 'dashboard',   icon: <DashboardOutlined />,             label: 'Dashboard',        path: '/dashboard',   roles: ['finance_admin', 'management', 'am_pm', 'read_only_pm'] },
-  { key: 'forecast',    icon: <FundProjectionScreenOutlined />,  label: 'Forecast',         path: '/forecast',    roles: ['finance_admin', 'management', 'am_pm', 'read_only_pm'] },
-  { key: 'sow',         icon: <FileTextOutlined />,              label: 'SOW',              path: '/sow',         roles: ['finance_admin', 'management', 'am_pm', 'read_only_pm'] },
-  { key: 'po',          icon: <ShoppingCartOutlined />,          label: 'Purchase Orders',  path: '/po',          roles: ['finance_admin', 'management', 'am_pm', 'read_only_pm'] },
-  { key: 'invoices',    icon: <FileDoneOutlined />,              label: 'Invoices',         path: '/invoices',    roles: ['finance_admin', 'management', 'am_pm', 'read_only_pm'] },
-  { key: 'payments',    icon: <DollarOutlined />,                label: 'Payments',         path: '/payments',    roles: ['finance_admin', 'management', 'am_pm'] },
+  { key: 'dashboard',   icon: <DashboardOutlined />,             label: 'Dashboard',        path: '/dashboard',   roles: ['finance_admin', 'management', 'am_pm', 'account_manager', 'project_manager', 'read_only_pm'] },
+  { key: 'forecast',    icon: <FundProjectionScreenOutlined />,  label: 'Forecast',         path: '/forecast',    roles: ['finance_admin', 'account_manager', 'project_manager', 'am_pm'] },
+  { key: 'sow',         icon: <FileTextOutlined />,              label: 'SOW',              path: '/sow',         roles: ['finance_admin', 'management', 'am_pm', 'account_manager', 'project_manager', 'read_only_pm'] },
+  { key: 'po',          icon: <ShoppingCartOutlined />,          label: 'Purchase Orders',  path: '/po',          roles: ['finance_admin', 'management', 'am_pm', 'account_manager', 'project_manager', 'read_only_pm'] },
+  { key: 'invoices',    icon: <FileDoneOutlined />,              label: 'Invoices',         path: '/invoices',    roles: ['finance_admin', 'management', 'am_pm', 'account_manager', 'project_manager', 'read_only_pm'] },
+  { key: 'payments',    icon: <DollarOutlined />,                label: 'Payments',         path: '/payments',    roles: ['finance_admin', 'management', 'am_pm', 'account_manager', 'project_manager'] },
   { key: 'cashflow',    icon: <LineChartOutlined />,             label: 'Cashflow & Runway',path: '/cashflow',    roles: ['finance_admin', 'management'] },
-  { key: 'repository',  icon: <FolderOpenOutlined />,            label: 'Repository',       path: '/repository',  roles: ['finance_admin', 'management', 'am_pm', 'read_only_pm'] },
-  { key: 'reports',     icon: <BarChartOutlined />,              label: 'Reports',          path: '/reports',     roles: ['finance_admin', 'management', 'am_pm', 'read_only_pm'] },
+  { key: 'repository',  icon: <FolderOpenOutlined />,            label: 'Repository',       path: '/repository',  roles: ['finance_admin', 'management', 'am_pm', 'account_manager', 'project_manager', 'read_only_pm'] },
+  { key: 'reports',     icon: <BarChartOutlined />,              label: 'Reports',          path: '/reports',     roles: ['finance_admin', 'management', 'am_pm', 'account_manager', 'project_manager', 'read_only_pm'] },
   { key: 'bulk-upload', icon: <UploadOutlined />,                label: 'Bulk Upload',      path: '/bulk-upload', roles: ['finance_admin'] },
   { key: 'admin',       icon: <SettingOutlined />,               label: 'Administration',   path: '/admin',       roles: ['finance_admin'] },
 ];
 
 const ROLE_LABELS: Record<UserRole, { text: string; color: string }> = {
-  finance_admin:  { text: 'Finance / Admin', color: 'blue' },
-  management:     { text: 'Management',      color: 'purple' },
-  am_pm:          { text: 'AM / PM',         color: 'green' },
-  read_only_pm:   { text: 'Read-Only PM',    color: 'default' },
+  finance_admin:   { text: 'Finance / Admin',  color: 'blue' },
+  management:      { text: 'Management',       color: 'purple' },
+  account_manager: { text: 'Account Manager',  color: 'green' },
+  project_manager: { text: 'Project Manager',  color: 'geekblue' },
+  am_pm:           { text: 'AM / PM',          color: 'cyan' },
+  read_only_pm:    { text: 'Read-Only PM',     color: 'default' },
 };
 
 export default function AppLayout() {

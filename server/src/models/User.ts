@@ -1,7 +1,15 @@
 import mongoose, { Document, Schema } from 'mongoose';
 import bcrypt from 'bcryptjs';
 
-export type UserRole = 'finance_admin' | 'management' | 'am_pm' | 'read_only_pm';
+export type UserRole =
+  | 'finance_admin'
+  | 'management'
+  | 'account_manager'
+  | 'project_manager'
+  | 'am_pm'           // legacy alias — treated same as account_manager
+  | 'read_only_pm';
+
+export const FORECAST_ROLES: UserRole[] = ['finance_admin', 'account_manager', 'project_manager', 'am_pm'];
 
 export interface IUser extends Document {
   name: string;
@@ -9,6 +17,8 @@ export interface IUser extends Document {
   password: string;
   role: UserRole;
   isActive: boolean;
+  assignedSites: mongoose.Types.ObjectId[];
+  assignedCustomers: mongoose.Types.ObjectId[];
   createdAt: Date;
   updatedAt: Date;
   comparePassword(candidatePassword: string): Promise<boolean>;
@@ -36,13 +46,15 @@ const UserSchema = new Schema<IUser>(
     },
     role: {
       type: String,
-      enum: ['finance_admin', 'management', 'am_pm', 'read_only_pm'],
+      enum: ['finance_admin', 'management', 'account_manager', 'project_manager', 'am_pm', 'read_only_pm'],
       required: [true, 'Role is required'],
     },
     isActive: {
       type: Boolean,
       default: true,
     },
+    assignedSites: [{ type: Schema.Types.ObjectId, ref: 'CustomerPlant' }],
+    assignedCustomers: [{ type: Schema.Types.ObjectId, ref: 'Customer' }],
   },
   {
     timestamps: true,
