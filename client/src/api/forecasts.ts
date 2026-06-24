@@ -10,6 +10,8 @@ export interface CreateForecastPayload {
   status?: ForecastStatus;
   distributions: ForecastDistribution[];
   notes?: string;
+  projection: number;
+  signedValue?: number;
 }
 
 export interface ForecastListParams {

@@ -38,9 +38,10 @@ export async function generateForecastId(): Promise<string> {
   return generateSequentialId(col, 'forecastId', 'FCST');
 }
 
-export async function generateSOWId(customerCode: string): Promise<string> {
+export async function generateSOWId(customerCode?: string): Promise<string> {
   const col = mongoose.connection.collection('sows');
-  return generateSequentialId(col, 'sowId', `SOW-${customerCode}`);
+  const prefix = customerCode ? `SOW-${customerCode}` : 'SOW';
+  return generateSequentialId(col, 'sowId', prefix);
 }
 
 export async function generateInvoiceNumber(): Promise<string> {

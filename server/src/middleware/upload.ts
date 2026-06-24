@@ -42,3 +42,44 @@ export const uploadContract = multer({
   fileFilter: contractFileFilter,
   limits: { fileSize: 20 * 1024 * 1024 }, // 20 MB
 }).single('file');
+
+// ─── SOW document upload ──────────────────────────────────────────────────────
+
+const sowStorage = multer.diskStorage({
+  destination: (_req, _file, cb) => {
+    const dir = path.join(__dirname, '../../uploads/sows');
+    ensureDir(dir);
+    cb(null, dir);
+  },
+  filename: (_req, file, cb) => {
+    const unique = `${Date.now()}-${Math.round(Math.random() * 1e6)}`;
+    cb(null, `sow-${unique}${path.extname(file.originalname)}`);
+  },
+});
+
+export const uploadSOW = multer({
+  storage: sowStorage,
+  fileFilter: contractFileFilter,
+  limits: { fileSize: 20 * 1024 * 1024 },
+}).single('file');
+
+// ─── PO document upload ───────────────────────────────────────────────────────
+
+const poStorage = multer.diskStorage({
+  destination: (_req, _file, cb) => {
+    const dir = path.join(__dirname, '../../uploads/pos');
+    ensureDir(dir);
+    cb(null, dir);
+  },
+  filename: (_req, file, cb) => {
+    const unique = `${Date.now()}-${Math.round(Math.random() * 1e6)}`;
+    cb(null, `po-${unique}${path.extname(file.originalname)}`);
+  },
+});
+
+// A single PO may carry several documents (PO copy, amendments, annexures).
+export const uploadPO = multer({
+  storage: poStorage,
+  fileFilter: contractFileFilter,
+  limits: { fileSize: 20 * 1024 * 1024 },
+}).array('files', 10);

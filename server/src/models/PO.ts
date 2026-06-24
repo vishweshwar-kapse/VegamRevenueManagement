@@ -25,13 +25,24 @@ export interface IPOAmendment {
   uploadedAt: Date;
 }
 
+/**
+ * How much of this PO's value is attributed to a specific SOW.
+ * A PO can be split across multiple SOWs; the sum of allocation amounts
+ * normally equals poValue (over-allocation is permitted with a warning).
+ */
+export interface IPOAllocation {
+  sowId: mongoose.Types.ObjectId;
+  amount: number;
+}
+
 export interface IPO extends Document {
   poNumber: string;             // Customer-issued PO number
   customerId: mongoose.Types.ObjectId;
   plantId?: mongoose.Types.ObjectId;    // Which plant issued this PO
   linkedSOWIds: mongoose.Types.ObjectId[];
+  allocations: IPOAllocation[]; // Per-SOW attribution of the PO value
   poDate: Date;
-  poValue: number;              // Original PO value
+  poValue: number;              // Original PO value (amount approved by customer)
   effectivePOValue: number;     // After amendments
   currency: Currency;
   invoicedValue: number;        // Total invoiced against this PO
@@ -62,6 +73,14 @@ const PODocumentSchema = new Schema<IPODocument>(
     remarks: { type: String },
   },
   { _id: true }
+);
+
+const POAllocationSchema = new Schema<IPOAllocation>(
+  {
+    sowId: { type: Schema.Types.ObjectId, ref: 'SOW', required: true },
+    amount: { type: Number, required: true, min: 0 },
+  },
+  { _id: false }
 );
 
 const POAmendmentSchema = new Schema<IPOAmendment>(
@@ -95,6 +114,7 @@ const POSchema = new Schema<IPO>(
       ref: 'CustomerPlant',
     },
     linkedSOWIds: [{ type: Schema.Types.ObjectId, ref: 'SOW' }],
+    allocations: [POAllocationSchema],
     poDate: {
       type: Date,
       required: [true, 'PO date is required'],

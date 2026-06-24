@@ -40,6 +40,7 @@ export interface IForecast extends Document {
   status: ForecastStatus;
   ownerId: mongoose.Types.ObjectId;
   distributions: IForecastDistribution[];
+  projection?: number;          // User-entered top-level projection value
   signedValue: number;          // Portion commercially confirmed
   projectedValue: number;       // Remaining unconfirmed
   linkedSOWIds: mongoose.Types.ObjectId[];
@@ -126,6 +127,7 @@ const ForecastSchema = new Schema<IForecast>(
       required: true,
     },
     distributions: [ForecastDistributionSchema],
+    projection: { type: Number, min: 0 },
     signedValue: { type: Number, default: 0, min: 0 },
     projectedValue: { type: Number, default: 0, min: 0 },
     linkedSOWIds: [{ type: Schema.Types.ObjectId, ref: 'SOW' }],

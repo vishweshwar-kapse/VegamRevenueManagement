@@ -6,6 +6,7 @@ import CustomerPlant from '../models/CustomerPlant';
 import Customer from '../models/Customer';
 import User, { FORECAST_ROLES } from '../models/User';
 import { protect, authorize, AuthRequest } from '../middleware/auth';
+import { generateForecastId } from '../utils/idGenerator';
 
 const router = Router();
 router.use(protect);
@@ -14,16 +15,6 @@ router.use(protect);
 
 function isForecastUser(role?: string) {
   return FORECAST_ROLES.includes(role as any);
-}
-
-async function generateForecastId(): Promise<string> {
-  const year = new Date().getFullYear();
-  const latest = await Forecast.findOne({ forecastId: new RegExp(`^FCST-${year}-`) })
-    .sort({ forecastId: -1 })
-    .lean();
-  if (!latest) return `FCST-${year}-001`;
-  const seq = parseInt(latest.forecastId.split('-')[2] || '0', 10) + 1;
-  return `FCST-${year}-${String(seq).padStart(3, '0')}`;
 }
 
 // ─── Summary (dashboard) ──────────────────────────────────────────────────────
@@ -170,7 +161,7 @@ router.get('/:id', async (req: AuthRequest, res: Response, next: NextFunction): 
 
 router.post(
   '/',
-  authorize('finance_admin', 'account_manager', 'project_manager', 'am_pm'),
+  authorize(...FORECAST_ROLES),
   [
     body('customerId').isMongoId().withMessage('Valid customer ID required'),
     body('plantId').isMongoId().withMessage('Valid plant/site ID required'),
@@ -183,6 +174,8 @@ router.post(
     body('distributions.*.q2').isFloat({ min: 0 }).withMessage('Q2 must be ≥ 0'),
     body('distributions.*.q3').isFloat({ min: 0 }).withMessage('Q3 must be ≥ 0'),
     body('distributions.*.q4').isFloat({ min: 0 }).withMessage('Q4 must be ≥ 0'),
+    body('projection').optional().isFloat({ min: 0 }).withMessage('Projection must be ≥ 0'),
+    body('signedValue').optional().isFloat({ min: 0 }).withMessage('Signed value must be ≥ 0'),
     body('notes').optional().isString(),
   ],
   async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {
@@ -193,7 +186,7 @@ router.post(
         return;
       }
 
-      const { entityId, customerId, plantId, description, fy, status, distributions, notes } = req.body;
+      const { entityId, customerId, plantId, description, fy, status, distributions, notes, projection, signedValue } = req.body;
 
       // Verify site access for non-admins
       if (req.user && req.user.role !== 'finance_admin') {
@@ -245,7 +238,8 @@ router.post(
         status: status || 'projected',
         ownerId: req.user?._id,
         distributions: enrichedDistributions,
-        signedValue: status === 'signed' ? totalValue : 0,
+        projection: projection !== undefined ? Number(projection) : totalValue,
+        signedValue: (status === 'signed' && signedValue !== undefined) ? Number(signedValue) : 0,
         projectedValue: status !== 'signed' ? totalValue : 0,
         notes,
         history: [{
@@ -267,7 +261,7 @@ router.post(
 
 router.put(
   '/:id',
-  authorize('finance_admin', 'account_manager', 'project_manager', 'am_pm'),
+  authorize(...FORECAST_ROLES),
   [
     body('description').optional().trim().notEmpty(),
     body('status').optional().isIn(['projected', 'signed', 'closed']),
@@ -277,6 +271,8 @@ router.put(
     body('distributions.*.q2').optional().isFloat({ min: 0 }),
     body('distributions.*.q3').optional().isFloat({ min: 0 }),
     body('distributions.*.q4').optional().isFloat({ min: 0 }),
+    body('projection').optional().isFloat({ min: 0 }).withMessage('Projection must be ≥ 0'),
+    body('signedValue').optional().isFloat({ min: 0 }).withMessage('Signed value must be ≥ 0'),
     body('notes').optional().isString(),
   ],
   async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {
@@ -302,15 +298,12 @@ router.put(
       }
 
       const previousValue = forecast.totalValue;
-      const { description, status, distributions, notes } = req.body;
+      const { description, status, distributions, notes, projection, signedValue } = req.body;
 
       if (description !== undefined) forecast.description = description;
       if (notes !== undefined) forecast.notes = notes;
-      if (status !== undefined) {
-        forecast.status = status;
-        forecast.signedValue = status === 'signed' ? forecast.totalValue : 0;
-        forecast.projectedValue = status !== 'signed' ? forecast.totalValue : 0;
-      }
+      if (projection !== undefined) forecast.projection = Number(projection);
+      if (status !== undefined) forecast.status = status;
 
       if (distributions !== undefined) {
         const enriched = (distributions as any[]).map((d: any) => ({
@@ -323,9 +316,17 @@ router.put(
         }));
         forecast.distributions = enriched;
         forecast.totalValue = enriched.reduce((s: number, d: any) => s + d.total, 0);
-        if (forecast.status === 'signed') forecast.signedValue = forecast.totalValue;
-        else forecast.projectedValue = forecast.totalValue;
       }
+
+      // signedValue is owned by the PO → SOW → Forecast cascade (see services/poCascade.ts).
+      // Only overwrite it when the request explicitly provides one (manual override / signed
+      // forecast created via the form); otherwise leave the cascade-computed value intact so a
+      // routine edit (description, status, distributions) does not wipe PO-confirmed amounts.
+      if (signedValue !== undefined) {
+        forecast.signedValue = Number(signedValue);
+      }
+      // projectedValue is always the remaining unconfirmed portion of the current total.
+      forecast.projectedValue = Math.max(forecast.totalValue - forecast.signedValue, 0);
 
       forecast.history.push({
         action: 'updated',
@@ -347,7 +348,7 @@ router.put(
 
 router.delete(
   '/:id',
-  authorize('finance_admin', 'account_manager', 'project_manager', 'am_pm'),
+  authorize(...FORECAST_ROLES),
   async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {
     try {
       const forecast = await Forecast.findById(req.params.id);

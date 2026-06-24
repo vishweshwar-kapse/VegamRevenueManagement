@@ -1,6 +1,13 @@
 import mongoose, { Document, Schema } from 'mongoose';
 
-export type SOWStatus = 'draft' | 'submitted' | 'linked' | 'closed' | 'archived';
+export type SOWStatus =
+  | 'draft'
+  | 'submitted'
+  | 'linked'
+  | 'partially_accepted'  // some PO value signed, but less than the SOW total
+  | 'accepted'            // PO value signed covers the full SOW total
+  | 'closed'
+  | 'archived';
 
 export interface ISOWDocument {
   originalName: string;
@@ -25,8 +32,15 @@ export interface ISOWVersion {
   remarks?: string;
 }
 
+export interface ISOWMilestone {
+  description: string;
+  amount: number;
+  deliveryDate: Date;
+}
+
 export interface ISOW extends Document {
-  sowId: string;           // Human-readable ID e.g. SOW-CUST001-2025-001
+  sowId: string;           // Human-readable ID e.g. SOW-2025-001
+  entityId?: mongoose.Types.ObjectId;  // Selling entity
   customerId: mongoose.Types.ObjectId;
   plantId?: mongoose.Types.ObjectId;    // Which plant this SOW is for
   forecastId?: mongoose.Types.ObjectId;
@@ -37,7 +51,9 @@ export interface ISOW extends Document {
   startDate?: Date;
   endDate?: Date;
   totalValue?: number;
+  signedValue: number;     // Sum of PO allocations to this SOW (PO-confirmed amount)
   currency?: string;
+  milestones: ISOWMilestone[];
   currentVersion: number;
   status: SOWStatus;
   ownerId: mongoose.Types.ObjectId;
@@ -51,6 +67,15 @@ export interface ISOW extends Document {
   createdAt: Date;
   updatedAt: Date;
 }
+
+const SOWMilestoneSchema = new Schema<ISOWMilestone>(
+  {
+    description: { type: String, required: true },
+    amount: { type: Number, required: true, min: 0 },
+    deliveryDate: { type: Date, required: true },
+  },
+  { _id: true }
+);
 
 const SOWDocumentSchema = new Schema<ISOWDocument>(
   {
@@ -89,6 +114,10 @@ const SOWSchema = new Schema<ISOW>(
       unique: true,
       trim: true,
     },
+    entityId: {
+      type: Schema.Types.ObjectId,
+      ref: 'Entity',
+    },
     customerId: {
       type: Schema.Types.ObjectId,
       ref: 'Customer',
@@ -113,6 +142,7 @@ const SOWSchema = new Schema<ISOW>(
     startDate: { type: Date },
     endDate: { type: Date },
     totalValue: { type: Number, min: 0 },
+    signedValue: { type: Number, default: 0, min: 0 },
     currency: {
       type: String,
       enum: ['USD', 'INR', 'EUR', 'GBP', 'SGD', 'AED'],
@@ -120,7 +150,7 @@ const SOWSchema = new Schema<ISOW>(
     currentVersion: { type: Number, default: 1 },
     status: {
       type: String,
-      enum: ['draft', 'submitted', 'linked', 'closed', 'archived'],
+      enum: ['draft', 'submitted', 'linked', 'partially_accepted', 'accepted', 'closed', 'archived'],
       default: 'draft',
     },
     ownerId: {
@@ -128,6 +158,7 @@ const SOWSchema = new Schema<ISOW>(
       ref: 'User',
       required: true,
     },
+    milestones: [SOWMilestoneSchema],
     documents: [SOWDocumentSchema],
     versions: [SOWVersionSchema],
     linkedPOIds: [{ type: Schema.Types.ObjectId, ref: 'PO' }],

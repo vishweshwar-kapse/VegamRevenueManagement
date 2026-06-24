@@ -196,6 +196,7 @@ export interface Forecast {
   description: string;
   fy: string;
   totalValue: number;
+  projection?: number;
   currency: Currency;
   status: ForecastStatus;
   ownerId: string | User;
@@ -238,7 +239,14 @@ export interface DashboardSummary {
 
 // ─── SOW ──────────────────────────────────────────────────────────────────────
 
-export type SOWStatus = 'draft' | 'submitted' | 'linked' | 'closed' | 'archived';
+export type SOWStatus =
+  | 'draft'
+  | 'submitted'
+  | 'linked'
+  | 'partially_accepted'
+  | 'accepted'
+  | 'closed'
+  | 'archived';
 
 export interface SOWDocument {
   _id: string;
@@ -251,9 +259,17 @@ export interface SOWDocument {
   remarks?: string;
 }
 
+export interface SOWMilestone {
+  _id?: string;
+  description: string;
+  amount: number;
+  deliveryDate: string; // ISO date string
+}
+
 export interface SOW {
   _id: string;
   sowId: string;
+  entityId?: string | Entity;
   customerId: string | Customer;
   plantId?: string | CustomerPlant;
   forecastId?: string | Forecast;
@@ -263,7 +279,9 @@ export interface SOW {
   startDate?: string;
   endDate?: string;
   totalValue?: number;
+  signedValue: number;        // PO-confirmed amount (sum of PO allocations)
   currency?: Currency;
+  milestones: SOWMilestone[];
   currentVersion: number;
   status: SOWStatus;
   ownerId: string | User;
@@ -289,12 +307,29 @@ export interface POAmendment {
   uploadedAt: string;
 }
 
+export interface POAllocation {
+  sowId: string | SOW;
+  amount: number;
+}
+
+export interface PODocument {
+  _id: string;
+  originalName: string;
+  filePath: string;
+  fileSize?: number;
+  mimeType?: string;
+  uploadedBy: string | User;
+  uploadedAt: string;
+  remarks?: string;
+}
+
 export interface PO {
   _id: string;
   poNumber: string;
   customerId: string | Customer;
   plantId?: string | CustomerPlant;
-  linkedSOWIds: string[];
+  linkedSOWIds: Array<string | SOW>;
+  allocations: POAllocation[];
   poDate: string;
   poValue: number;
   effectivePOValue: number;
@@ -303,6 +338,7 @@ export interface PO {
   remainingValue: number;
   status: POStatus;
   ownerId: string | User;
+  documents: PODocument[];
   amendments: POAmendment[];
   milestones?: string;
   notes?: string;

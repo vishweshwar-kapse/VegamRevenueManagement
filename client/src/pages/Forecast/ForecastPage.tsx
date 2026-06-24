@@ -9,18 +9,14 @@ import {
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import dayjs from 'dayjs';
 import { forecastsApi } from '@/api/forecasts';
-import { Forecast, ForecastStatus, Customer, CustomerPlant, Currency } from '@/types';
+import { Forecast, ForecastStatus, Customer, CustomerPlant } from '@/types';
 import { useIsForecastUser } from '@/store/authStore';
+import { FORECAST_STATUS_COLORS, COLORS, FONT_SIZE } from '@/constants/theme';
+import { fmt } from '@/utils/format';
 import ForecastFormDrawer from './ForecastFormDrawer';
 
 const { Title, Text } = Typography;
 const { useBreakpoint } = Grid;
-
-const STATUS_COLORS: Record<ForecastStatus, string> = {
-  projected: 'blue',
-  signed: 'green',
-  closed: 'default',
-};
 
 function getFYOptions(): string[] {
   const now = new Date();
@@ -35,13 +31,6 @@ function getFYOptions(): string[] {
 
 const FY_OPTIONS = getFYOptions();
 const CURRENT_FY = FY_OPTIONS[1];
-
-const fmt = (v: number, currency?: Currency) => {
-  const prefix = currency ? `${currency} ` : '';
-  if (v >= 1_000_000) return `${prefix}${(v / 1_000_000).toFixed(2)}M`;
-  if (v >= 1_000) return `${prefix}${(v / 1_000).toFixed(0)}K`;
-  return `${prefix}${v.toLocaleString()}`;
-};
 
 export default function ForecastPage() {
   const screens = useBreakpoint();
@@ -95,9 +84,14 @@ export default function ForecastPage() {
     setDrawerOpen(true);
   };
 
+  // Signed / projected reflect actual PO-confirmed amounts (not whole-forecast
+  // status buckets) so partial PO signing is visible immediately.
   const total = forecasts.reduce((s, f) => s + f.totalValue, 0);
-  const signed = forecasts.filter((f) => f.status === 'signed').reduce((s, f) => s + f.totalValue, 0);
-  const projected = forecasts.filter((f) => f.status === 'projected').reduce((s, f) => s + f.totalValue, 0);
+  const signed = forecasts.reduce((s, f) => s + (f.signedValue || 0), 0);
+  const projected = forecasts.reduce(
+    (s, f) => s + (f.projectedValue ?? Math.max(f.totalValue - (f.signedValue || 0), 0)),
+    0
+  );
 
   const columns = [
     {
@@ -148,7 +142,7 @@ export default function ForecastPage() {
       key: 'status',
       width: 90,
       render: (s: ForecastStatus) => (
-        <Tag color={STATUS_COLORS[s]}>{s.charAt(0).toUpperCase() + s.slice(1)}</Tag>
+        <Tag color={FORECAST_STATUS_COLORS[s]}>{s.charAt(0).toUpperCase() + s.slice(1)}</Tag>
       ),
     },
     {
@@ -158,8 +152,29 @@ export default function ForecastPage() {
       width: 130,
       align: 'right' as const,
       render: (v: number, r: Forecast) => (
-        <Text strong style={{ fontSize: 13 }}>{fmt(v, r.currency)}</Text>
+        <Text strong style={{ fontSize: FONT_SIZE.md }}>{fmt(v, r.currency)}</Text>
       ),
+    },
+    {
+      title: 'Signed / Pending',
+      key: 'signed',
+      width: 150,
+      align: 'right' as const,
+      render: (_: unknown, r: Forecast) => {
+        const signedVal = r.signedValue || 0;
+        const pending = r.projectedValue ?? Math.max(r.totalValue - signedVal, 0);
+        const fullySigned = r.totalValue > 0 && signedVal >= r.totalValue;
+        return (
+          <div>
+            <Text style={{ fontSize: FONT_SIZE.sm, color: COLORS.success }}>
+              {fmt(signedVal, r.currency)}
+            </Text>
+            <Text type="secondary" style={{ display: 'block', fontSize: FONT_SIZE.xs }}>
+              {fullySigned ? 'Fully signed' : `${fmt(pending, r.currency)} pending`}
+            </Text>
+          </div>
+        );
+      },
     },
     {
       title: 'Owner',
@@ -167,7 +182,7 @@ export default function ForecastPage() {
       width: 120,
       render: (_: unknown, r: Forecast) => {
         const owner = typeof r.ownerId === 'string' ? null : (r.ownerId as any);
-        return <Text style={{ fontSize: 12 }}>{owner?.name || '—'}</Text>;
+        return <Text style={{ fontSize: FONT_SIZE.sm }}>{owner?.name || '—'}</Text>;
       },
     },
     {
@@ -175,7 +190,7 @@ export default function ForecastPage() {
       dataIndex: 'createdAt',
       key: 'createdAt',
       width: 100,
-      render: (d: string) => <Text style={{ fontSize: 11 }}>{dayjs(d).format('DD MMM YY')}</Text>,
+      render: (d: string) => <Text style={{ fontSize: FONT_SIZE.xs }}>{dayjs(d).format('DD MMM YY')}</Text>,
     },
     {
       title: '',
@@ -215,7 +230,7 @@ export default function ForecastPage() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16, flexWrap: 'wrap', gap: 8 }}>
         <div>
           <Title level={isMobile ? 5 : 4} style={{ margin: 0 }}>Revenue Forecast</Title>
-          <Text type="secondary" style={{ fontSize: 13 }}>
+          <Text type="secondary" style={{ fontSize: FONT_SIZE.md }}>
             Site-level revenue predictions across financial years
           </Text>
         </div>
@@ -227,17 +242,17 @@ export default function ForecastPage() {
       {/* Summary strip */}
       <Row gutter={[10, 10]} style={{ marginBottom: 16 }}>
         {[
-          { label: 'Total Forecast', value: total,     color: '#1677ff' },
-          { label: 'Signed',         value: signed,    color: '#52c41a' },
-          { label: 'Projected',      value: projected, color: '#722ed1' },
+          { label: 'Total Forecast', value: total,     color: COLORS.primary },
+          { label: 'Signed',         value: signed,    color: COLORS.success },
+          { label: 'Projected',      value: projected, color: COLORS.purple },
         ].map((item) => (
           <Col xs={8} key={item.label}>
             <Card size="small" styles={{ body: { padding: '10px 14px' } }}>
               <Statistic
-                title={<span style={{ fontSize: 11 }}>{item.label}</span>}
+                title={<span style={{ fontSize: FONT_SIZE.xs }}>{item.label}</span>}
                 value={item.value}
                 formatter={(v) => fmt(Number(v))}
-                valueStyle={{ fontSize: isMobile ? 14 : 18, color: item.color }}
+                valueStyle={{ fontSize: isMobile ? FONT_SIZE.lg : FONT_SIZE.xl, color: item.color }}
               />
             </Card>
           </Col>
@@ -285,7 +300,7 @@ export default function ForecastPage() {
           loading={isLoading}
           pagination={{ pageSize: 20, showSizeChanger: false, showTotal: (t) => `${t} forecasts` }}
           size="small"
-          scroll={{ x: 900 }}
+          scroll={{ x: 1050 }}
           locale={{ emptyText: 'No forecasts found. Create your first forecast.' }}
         />
       </Card>
