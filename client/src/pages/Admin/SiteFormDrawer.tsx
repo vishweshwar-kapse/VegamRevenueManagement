@@ -404,6 +404,7 @@ export default function SiteFormDrawer({
       title={isEdit ? `Edit: ${plant?.plantName}` : 'Add New Site'}
       open={open}
       onClose={onClose}
+      maskClosable={false}
       width={620}
       destroyOnClose
       footer={

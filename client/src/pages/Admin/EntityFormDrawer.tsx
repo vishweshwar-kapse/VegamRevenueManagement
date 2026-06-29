@@ -82,6 +82,7 @@ export default function EntityFormDrawer({ open, entity, onClose, onSuccess }: P
       title={isEdit ? `Edit: ${entity?.name}` : 'Add Business Entity'}
       open={open}
       onClose={onClose}
+      maskClosable={false}
       width={600}
       destroyOnClose
       footer={

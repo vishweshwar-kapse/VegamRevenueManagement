@@ -5,9 +5,19 @@
 
 import mongoose from 'mongoose';
 
+/** Escape any regex metacharacters in a literal prefix before using it in $regex. */
+function escapeRegex(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
 /**
- * Generate a sequential ID with a given prefix.
- * Queries the collection to find the highest existing sequence.
+ * Generate a sequential ID with a given prefix (e.g. "SOW-2026-0003").
+ *
+ * Computes the next sequence from the true NUMERIC maximum of the trailing
+ * counter across all matching IDs — never a lexicographic sort. Lexicographic
+ * ordering is unsafe when padding is inconsistent (e.g. legacy "SOW-2026-001"
+ * sorts above "SOW-2026-0002"), which would otherwise regenerate an existing
+ * ID and trigger a duplicate-key error.
  */
 async function generateSequentialId(
   collection: mongoose.Collection,
@@ -17,20 +27,24 @@ async function generateSequentialId(
   const year = new Date().getFullYear();
   const pattern = `${prefix}-${year}-`;
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const last = await collection.findOne<Record<string, any>>(
-    { [field]: { $regex: `^${pattern}` } },
-    { sort: { [field]: -1 } }
-  );
+  const docs = await collection
+    .find({ [field]: { $regex: `^${escapeRegex(pattern)}` } })
+    .project({ [field]: 1 })
+    .toArray();
 
-  let seq = 1;
-  if (last && typeof last[field] === 'string') {
-    const parts = (last[field] as string).split('-');
-    const lastSeq = parseInt(parts[parts.length - 1] || '0', 10);
-    if (!isNaN(lastSeq)) seq = lastSeq + 1;
+  let maxSeq = 0;
+  for (const doc of docs) {
+    const value = (doc as Record<string, unknown>)[field];
+    if (typeof value === 'string') {
+      const match = value.match(/(\d+)$/);
+      if (match) {
+        const seq = parseInt(match[1], 10);
+        if (!isNaN(seq) && seq > maxSeq) maxSeq = seq;
+      }
+    }
   }
 
-  return `${pattern}${String(seq).padStart(4, '0')}`;
+  return `${pattern}${String(maxSeq + 1).padStart(4, '0')}`;
 }
 
 export async function generateForecastId(): Promise<string> {

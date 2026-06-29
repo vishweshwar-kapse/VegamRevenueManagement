@@ -1,0 +1,6 @@
+Forecast Projection 
+1. Entry for Projection needs to be allowed, (Vaidation enhancement)distribution should not go beyond the value entered
+2. On the dashboard the default year should be the current financial year
+3. In forecast entry component change the keyword from "Projectect" to "Projection"
+4. If the forecast is done during previous FY and some revenue projected for next financial year then
+the pending amount needs to be accounted for the next spill over year.

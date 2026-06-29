@@ -81,6 +81,7 @@ export default function CustomerFormDrawer({ open, customer, onClose, onSuccess 
       title={isEdit ? `Edit: ${customer?.name}` : 'New Customer'}
       open={open}
       onClose={onClose}
+      maskClosable={false}
       width={520}
       destroyOnClose
       footer={

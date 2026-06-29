@@ -359,19 +359,27 @@ export interface InvoiceRequest {
   remarks?: string;
 }
 
+export interface InvoiceLineItem {
+  poId: string | PO;
+  poNumber: string;
+  description: string;
+  amount: number;
+}
+
 export interface Invoice {
   _id: string;
   invoiceNumber: string;
   customerId: string | Customer;
   plantId?: string | CustomerPlant;
-  poId: string | PO;
+  lineItems: InvoiceLineItem[];
+  poIds: Array<string | PO>;
   sowId?: string | SOW;
   invoiceDate: string;
   payByDate: string;
   invoiceValue: number;
   currency: Currency;
   status: InvoiceStatus;
-  description: string;
+  description?: string;
   milestoneDescription?: string;
   taxAmount?: number;
   taxDescription?: string;
@@ -379,6 +387,7 @@ export interface Invoice {
   request: InvoiceRequest;
   issuedBy?: string | User;
   issuedAt?: string;
+  pdfPath?: string;
   realizedAmount: number;
   outstandingAmount: number;
   overdueDays: number;

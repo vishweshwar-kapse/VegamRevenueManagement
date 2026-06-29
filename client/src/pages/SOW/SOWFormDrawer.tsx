@@ -148,10 +148,17 @@ export default function SOWFormDrawer({ open, sow, onClose, onSuccess }: Props) 
     resetSelectors,
   } = useFormSelectors({ open });
 
-  // Forecasts available for the selected customer
+  // Forecasts available for the selected customer — excludes those already linked to
+  // another SOW. In edit mode we pass currentSowId so the SOW's own forecast stays visible.
+  const currentSowId = sow?._id;
   const { data: forecastsData } = useQuery({
-    queryKey: ['forecasts-for-sow', selectedCustomerId],
-    queryFn: () => forecastsApi.list({ customerId: selectedCustomerId, limit: 200 }),
+    queryKey: ['forecasts-for-sow', selectedCustomerId, currentSowId],
+    queryFn: () => forecastsApi.list({
+      customerId: selectedCustomerId,
+      limit: 200,
+      unlinked: true,
+      currentSowId,
+    }),
     enabled: open && !!selectedCustomerId,
   });
   const availableForecasts: Forecast[] = (forecastsData?.data as any)?.data || [];
@@ -379,6 +386,7 @@ export default function SOWFormDrawer({ open, sow, onClose, onSuccess }: Props) 
       title={isEdit ? `Edit SOW: ${sow?.sowId}` : 'New Statement of Work'}
       open={open}
       onClose={onClose}
+      maskClosable={false}
       width={isMobile ? '100%' : 720}
       destroyOnHidden
       footer={

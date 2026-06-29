@@ -11,18 +11,30 @@ export interface IInvoiceRequest {
   remarks?: string;
 }
 
+/**
+ * One billed line on the invoice — a single PO and the amount being invoiced
+ * against it. An invoice can bill several POs together.
+ */
+export interface IInvoiceLineItem {
+  poId: mongoose.Types.ObjectId;
+  poNumber: string;       // Snapshot of the customer PO number at invoice time
+  description: string;    // What is being billed for this PO
+  amount: number;         // Amount invoiced against this PO
+}
+
 export interface IInvoice extends Document {
   invoiceNumber: string;        // System-generated unique number
   customerId: mongoose.Types.ObjectId;
   plantId?: mongoose.Types.ObjectId;    // Which plant this invoice is billed to
-  poId: mongoose.Types.ObjectId;
+  lineItems: IInvoiceLineItem[];        // POs billed on this invoice
+  poIds: mongoose.Types.ObjectId[];     // Flattened PO references (for filtering)
   sowId?: mongoose.Types.ObjectId;
   invoiceDate: Date;
   payByDate: Date;
   invoiceValue: number;
   currency: Currency;
   status: InvoiceStatus;
-  description: string;          // What is being billed
+  description?: string;         // Optional summary; line items carry per-PO descriptions
   milestoneDescription?: string;
   taxAmount?: number;
   taxDescription?: string;      // e.g. "NA", "GST 18%"
@@ -67,6 +79,16 @@ const InvoiceRequestSchema = new Schema<IInvoiceRequest>(
   { _id: false }
 );
 
+const InvoiceLineItemSchema = new Schema<IInvoiceLineItem>(
+  {
+    poId: { type: Schema.Types.ObjectId, ref: 'PO', required: true },
+    poNumber: { type: String, required: true },
+    description: { type: String, required: true },
+    amount: { type: Number, required: true, min: 0 },
+  },
+  { _id: false }
+);
+
 const InvoiceSchema = new Schema<IInvoice>(
   {
     invoiceNumber: {
@@ -84,11 +106,14 @@ const InvoiceSchema = new Schema<IInvoice>(
       type: Schema.Types.ObjectId,
       ref: 'CustomerPlant',
     },
-    poId: {
-      type: Schema.Types.ObjectId,
-      ref: 'PO',
-      required: true,
+    lineItems: {
+      type: [InvoiceLineItemSchema],
+      validate: {
+        validator: (v: IInvoiceLineItem[]) => Array.isArray(v) && v.length > 0,
+        message: 'An invoice must bill at least one PO',
+      },
     },
+    poIds: [{ type: Schema.Types.ObjectId, ref: 'PO' }],
     sowId: {
       type: Schema.Types.ObjectId,
       ref: 'SOW',
@@ -116,10 +141,7 @@ const InvoiceSchema = new Schema<IInvoice>(
       enum: ['draft', 'issued', 'partial', 'paid', 'cancelled', 'overdue'],
       default: 'draft',
     },
-    description: {
-      type: String,
-      required: [true, 'Invoice description is required'],
-    },
+    description: { type: String },
     milestoneDescription: { type: String },
     taxAmount: { type: Number, default: 0, min: 0 },
     taxDescription: { type: String, default: 'NA' },

@@ -173,6 +173,12 @@ router.post(
       let linkedForecastObjectId: mongoose.Types.ObjectId | undefined;
 
       if (forecastId) {
+        const alreadyClaimed = await SOW.findOne({ forecastId: new mongoose.Types.ObjectId(forecastId), isActive: true }).lean();
+        if (alreadyClaimed) {
+          res.status(409).json({ success: false, message: 'This forecast is already linked to another SOW. Each forecast can only be linked to one SOW.' });
+          return;
+        }
+
         linkedForecastObjectId = new mongoose.Types.ObjectId(forecastId);
         // Update distributions AND link the SOW in one atomic operation.
         await Forecast.findByIdAndUpdate(forecastId, {
@@ -277,6 +283,17 @@ router.put(
       if (notes !== undefined) sow.notes = notes;
 
       if (forecastId !== undefined) {
+        if (forecastId) {
+          const alreadyClaimed = await SOW.findOne({
+            forecastId: new mongoose.Types.ObjectId(forecastId),
+            isActive: true,
+            _id: { $ne: sow._id },
+          }).lean();
+          if (alreadyClaimed) {
+            res.status(409).json({ success: false, message: 'This forecast is already linked to another SOW. Each forecast can only be linked to one SOW.' });
+            return;
+          }
+        }
         sow.forecastId = forecastId ? new mongoose.Types.ObjectId(forecastId) : undefined;
       }
 

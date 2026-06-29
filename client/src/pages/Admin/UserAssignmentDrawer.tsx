@@ -134,6 +134,7 @@ export default function UserAssignmentDrawer({ open, user, onClose }: Props) {
       }
       open={open}
       onClose={onClose}
+      maskClosable={false}
       width={520}
       destroyOnClose
       footer={

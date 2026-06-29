@@ -24,7 +24,7 @@ export const FONT_SIZE = {
 // ── Status colour maps ────────────────────────────────────────────────────────
 // Colocated here so both list pages and form drawers stay in sync.
 
-import type { ForecastStatus, SOWStatus, POStatus } from '@/types';
+import type { ForecastStatus, SOWStatus, POStatus, InvoiceStatus } from '@/types';
 
 export const FORECAST_STATUS_COLORS: Record<ForecastStatus, string> = {
   projected: 'blue',
@@ -57,4 +57,22 @@ export const PO_STATUS_COLORS: Record<POStatus, string> = {
   partial:   'gold',
   closed:    'green',
   cancelled: 'red',
+};
+
+export const INVOICE_STATUS_COLORS: Record<InvoiceStatus, string> = {
+  draft:     'default',
+  issued:    'blue',
+  partial:   'gold',
+  paid:      'green',
+  overdue:   'volcano',
+  cancelled: 'red',
+};
+
+export const INVOICE_STATUS_LABELS: Record<InvoiceStatus, string> = {
+  draft:     'Draft',
+  issued:    'Issued',
+  partial:   'Partially Paid',
+  paid:      'Paid',
+  overdue:   'Overdue',
+  cancelled: 'Cancelled',
 };

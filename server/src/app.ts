@@ -11,6 +11,7 @@ import customerPlantRoutes from './routes/customerPlants';
 import forecastRoutes from './routes/forecasts';
 import sowRoutes from './routes/sows';
 import poRoutes from './routes/pos';
+import invoiceRoutes from './routes/invoices';
 import dashboardRoutes from './routes/dashboard';
 import entityRoutes from './routes/entities';
 import { errorHandler, notFound } from './middleware/errorHandler';
@@ -54,10 +55,10 @@ app.use('/api/entities', entityRoutes);
 app.use('/api/forecasts', forecastRoutes);
 app.use('/api/sows', sowRoutes);
 app.use('/api/pos', poRoutes);
+app.use('/api/invoices', invoiceRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 
 // TODO: Register these routes as they are built
-// app.use('/api/invoices', invoiceRoutes);
 // app.use('/api/payments', paymentRoutes);
 // app.use('/api/cashflow', cashflowRoutes);
 // app.use('/api/references', referenceRoutes);

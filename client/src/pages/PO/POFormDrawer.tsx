@@ -265,6 +265,7 @@ export default function POFormDrawer({ open, po, onClose, onSuccess }: Props) {
       title={isEdit ? `Edit PO: ${po?.poNumber}` : 'Register Purchase Order'}
       open={open}
       onClose={onClose}
+      maskClosable={false}
       width={isMobile ? '100%' : 720}
       destroyOnHidden
       footer={

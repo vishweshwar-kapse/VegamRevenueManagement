@@ -78,6 +78,7 @@ export default function UserFormDrawer({ open, user, onClose }: Props) {
       title={isEdit ? `Edit: ${user?.name}` : 'New User'}
       open={open}
       onClose={onClose}
+      maskClosable={false}
       width={440}
       destroyOnClose
       footer={

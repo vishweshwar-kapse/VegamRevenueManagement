@@ -306,6 +306,7 @@ export default function ForecastFormDrawer({ open, forecast, onClose, onSuccess 
       title={isEdit ? `Edit Forecast: ${forecast?.forecastId}` : 'New Forecast'}
       open={open}
       onClose={onClose}
+      maskClosable={false}
       width={isMobile ? '100%' : 680}
       destroyOnHidden
       footer={
