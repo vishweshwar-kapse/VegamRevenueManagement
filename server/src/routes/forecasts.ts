@@ -35,8 +35,10 @@ router.get(
       const forecasts = await Forecast.find(filter).lean();
 
       const totalForecastValue = forecasts.reduce((s, f) => s + f.totalValue, 0);
-      const signedValue = forecasts.filter((f) => f.status === 'signed').reduce((s, f) => s + f.totalValue, 0);
-      const projectedValue = forecasts.filter((f) => f.status === 'projected').reduce((s, f) => s + f.totalValue, 0);
+      // Signed/projected are the numeric PO-driven rollups (status is now a manual
+      // lifecycle field and no longer buckets these figures).
+      const signedValue = forecasts.reduce((s, f) => s + (f.signedValue || 0), 0);
+      const projectedValue = forecasts.reduce((s, f) => s + (f.projectedValue || 0), 0);
       const conversionRate = totalForecastValue > 0 ? Math.round((signedValue / totalForecastValue) * 1000) / 10 : 0;
 
       // Quarterly roll-up for the FY
@@ -80,7 +82,7 @@ router.get(
   '/',
   [
     query('fy').optional().isString(),
-    query('status').optional().isIn(['projected', 'signed', 'closed']),
+    query('status').optional().isIn(['forecast_projected', 'partial_sow_partial_projected', 'partial_sow_partial_closed', 'forecast_cancelled']),
     query('customerId').optional().isMongoId(),
     query('plantId').optional().isMongoId(),
     query('page').optional().isInt({ min: 1 }),
@@ -167,7 +169,7 @@ router.post(
     body('plantId').isMongoId().withMessage('Valid plant/site ID required'),
     body('description').trim().notEmpty().withMessage('Description is required'),
     body('fy').trim().notEmpty().withMessage('Financial year is required'),
-    body('status').optional().isIn(['projected', 'signed', 'closed']),
+    body('status').optional().isIn(['forecast_projected', 'partial_sow_partial_projected', 'partial_sow_partial_closed', 'forecast_cancelled']),
     body('distributions').isArray({ min: 1 }).withMessage('At least one distribution entry is required'),
     body('distributions.*.fy').trim().notEmpty().withMessage('Distribution FY is required'),
     body('distributions.*.q1').isFloat({ min: 0 }).withMessage('Q1 must be ≥ 0'),
@@ -235,12 +237,14 @@ router.post(
         fy,
         totalValue,
         currency,
-        status: status || 'projected',
+        status: status || 'forecast_projected',
         ownerId: req.user?._id,
         distributions: enrichedDistributions,
         projection: projection !== undefined ? Number(projection) : totalValue,
-        signedValue: (status === 'signed' && signedValue !== undefined) ? Number(signedValue) : 0,
-        projectedValue: status !== 'signed' ? totalValue : 0,
+        // signed/projected are numeric PO-driven rollups, independent of the
+        // (now manual) lifecycle status.
+        signedValue: signedValue !== undefined ? Number(signedValue) : 0,
+        projectedValue: Math.max(totalValue - (signedValue !== undefined ? Number(signedValue) : 0), 0),
         notes,
         history: [{
           action: 'created',
@@ -264,7 +268,7 @@ router.put(
   authorize(...FORECAST_ROLES),
   [
     body('description').optional().trim().notEmpty(),
-    body('status').optional().isIn(['projected', 'signed', 'closed']),
+    body('status').optional().isIn(['forecast_projected', 'partial_sow_partial_projected', 'partial_sow_partial_closed', 'forecast_cancelled']),
     body('distributions').optional().isArray({ min: 1 }),
     body('distributions.*.fy').optional().trim().notEmpty(),
     body('distributions.*.q1').optional().isFloat({ min: 0 }),

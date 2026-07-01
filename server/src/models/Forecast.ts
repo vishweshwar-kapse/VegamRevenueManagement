@@ -1,6 +1,10 @@
 import mongoose, { Document, Schema } from 'mongoose';
 
-export type ForecastStatus = 'projected' | 'signed' | 'closed';
+export type ForecastStatus =
+  | 'forecast_projected'            // whole forecast still projected; no SoW carved out
+  | 'partial_sow_partial_projected' // part converted to SoW, remainder still projected
+  | 'partial_sow_partial_closed'    // part converted to SoW, remainder closed off
+  | 'forecast_cancelled';           // entire forecast cancelled
 export type Currency = 'USD' | 'INR' | 'EUR' | 'GBP' | 'SGD' | 'AED';
 
 export interface IQuarterDistribution {
@@ -118,8 +122,8 @@ const ForecastSchema = new Schema<IForecast>(
     },
     status: {
       type: String,
-      enum: ['projected', 'signed', 'closed'],
-      default: 'projected',
+      enum: ['forecast_projected', 'partial_sow_partial_projected', 'partial_sow_partial_closed', 'forecast_cancelled'],
+      default: 'forecast_projected',
     },
     ownerId: {
       type: Schema.Types.ObjectId,

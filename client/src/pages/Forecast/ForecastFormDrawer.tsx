@@ -162,7 +162,6 @@ export default function ForecastFormDrawer({ open, forecast, onClose, onSuccess 
         status: forecast.status,
         notes: forecast.notes,
         projection: forecast.projection,
-        signedValue: forecast.status === 'signed' ? forecast.signedValue : undefined,
       });
     } else if (open && !forecast) {
       form.resetFields();
@@ -203,11 +202,10 @@ export default function ForecastFormDrawer({ open, forecast, onClose, onSuccess 
       plantId: values.plantId,
       description: values.description,
       fy: values.fy,
-      status: values.status || 'projected',
+      status: values.status || 'forecast_projected',
       distributions: distributions.map((d) => ({ ...d, total: d.q1 + d.q2 + d.q3 + d.q4 })),
       notes: values.notes,
       projection: projectionNum,
-      signedValue: values.status === 'signed' ? values.signedValue : undefined,
     });
   };
 
@@ -240,7 +238,6 @@ export default function ForecastFormDrawer({ open, forecast, onClose, onSuccess 
   const grandTotal = distributions.reduce((sum, d) => sum + d.q1 + d.q2 + d.q3 + d.q4, 0);
 
   const watchedProjection = Form.useWatch('projection', form);
-  const watchedStatus = Form.useWatch('status', form);
   const projectionValue = Number(watchedProjection) || 0;
   const remainingValue = projectionValue - grandTotal;
   const remainingColor = remainingValue === 0 ? COLORS.success : COLORS.error;
@@ -426,12 +423,13 @@ export default function ForecastFormDrawer({ open, forecast, onClose, onSuccess 
             />
           </Form.Item>
 
-          <Form.Item name="status" label="Status" style={{ flex: 1 }} initialValue="projected">
+          <Form.Item name="status" label="Status" style={{ flex: 1 }} initialValue="forecast_projected">
             <Select
               options={[
-                { value: 'projected', label: 'Projection' },
-                { value: 'signed',    label: 'Signed' },
-                { value: 'closed',    label: 'Closed' },
+                { value: 'forecast_projected',            label: 'Forecast Projected' },
+                { value: 'partial_sow_partial_projected', label: 'Partial SoW/Partial Projected' },
+                { value: 'partial_sow_partial_closed',    label: 'Partial SoW/Partial Closed' },
+                { value: 'forecast_cancelled',            label: 'Forecast Cancelled' },
               ]}
             />
           </Form.Item>
@@ -445,17 +443,6 @@ export default function ForecastFormDrawer({ open, forecast, onClose, onSuccess 
         >
           <InputNumber min={0} precision={0} style={{ width: '100%' }} />
         </Form.Item>
-
-        {watchedStatus === 'signed' && (
-          <Form.Item
-            name="signedValue"
-            label="Signed Value"
-            rules={[{ required: true, message: 'Signed Value is required when status is Signed' }]}
-            extra={`Confirmed signed amount in ${currency}`}
-          >
-            <InputNumber min={0} precision={0} style={{ width: '100%' }} placeholder="Enter signed value" />
-          </Form.Item>
-        )}
 
         {/* ── Revenue Distribution ─────────────────────────────────────── */}
         <SectionLabel>Revenue Distribution</SectionLabel>

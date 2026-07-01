@@ -27,9 +27,17 @@ export const FONT_SIZE = {
 import type { ForecastStatus, SOWStatus, POStatus, InvoiceStatus } from '@/types';
 
 export const FORECAST_STATUS_COLORS: Record<ForecastStatus, string> = {
-  projected: 'blue',
-  signed:    'green',
-  closed:    'default',
+  forecast_projected:            'blue',
+  partial_sow_partial_projected: 'gold',
+  partial_sow_partial_closed:    'cyan',
+  forecast_cancelled:            'red',
+};
+
+export const FORECAST_STATUS_LABELS: Record<ForecastStatus, string> = {
+  forecast_projected:            'Forecast Projected',
+  partial_sow_partial_projected: 'Partial SoW/Partial Projected',
+  partial_sow_partial_closed:    'Partial SoW/Partial Closed',
+  forecast_cancelled:            'Forecast Cancelled',
 };
 
 export const SOW_STATUS_COLORS: Record<SOWStatus, string> = {

@@ -111,9 +111,8 @@ async function recomputeForecast(
   }
   forecast.linkedPOIds = Array.from(poIds).map(toObjectId);
 
-  if (forecast.status !== 'closed') {
-    forecast.status = total > 0 && signed >= total ? 'signed' : 'projected';
-  }
+  // Forecast lifecycle status is set manually by the owner; the cascade only
+  // maintains the numeric signed/projected rollup and PO links.
 
   if (previous !== signed && userId) {
     forecast.history.push({

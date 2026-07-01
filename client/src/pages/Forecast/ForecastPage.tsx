@@ -11,7 +11,7 @@ import dayjs from 'dayjs';
 import { forecastsApi } from '@/api/forecasts';
 import { Forecast, ForecastStatus, Customer, CustomerPlant } from '@/types';
 import { useIsForecastUser } from '@/store/authStore';
-import { FORECAST_STATUS_COLORS, COLORS, FONT_SIZE } from '@/constants/theme';
+import { FORECAST_STATUS_COLORS, FORECAST_STATUS_LABELS, COLORS, FONT_SIZE } from '@/constants/theme';
 import { fmt } from '@/utils/format';
 import ForecastFormDrawer from './ForecastFormDrawer';
 
@@ -142,7 +142,7 @@ export default function ForecastPage() {
       key: 'status',
       width: 90,
       render: (s: ForecastStatus) => (
-        <Tag color={FORECAST_STATUS_COLORS[s]}>{s.charAt(0).toUpperCase() + s.slice(1)}</Tag>
+        <Tag color={FORECAST_STATUS_COLORS[s]}>{FORECAST_STATUS_LABELS[s] || s}</Tag>
       ),
     },
     {
@@ -272,12 +272,13 @@ export default function ForecastPage() {
             value={statusFilter}
             placeholder="All statuses"
             allowClear
-            style={{ width: 140 }}
+            style={{ width: 240 }}
             onChange={setStatusFilter}
             options={[
-              { value: 'projected', label: 'Projected' },
-              { value: 'signed',    label: 'Signed' },
-              { value: 'closed',    label: 'Closed' },
+              { value: 'forecast_projected',            label: 'Forecast Projected' },
+              { value: 'partial_sow_partial_projected', label: 'Partial SoW/Partial Projected' },
+              { value: 'partial_sow_partial_closed',    label: 'Partial SoW/Partial Closed' },
+              { value: 'forecast_cancelled',            label: 'Forecast Cancelled' },
             ]}
           />
           <Input

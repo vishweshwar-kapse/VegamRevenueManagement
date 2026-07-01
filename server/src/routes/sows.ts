@@ -193,7 +193,7 @@ router.post(
           fy: primaryFY,
           totalValue,
           currency,
-          status: 'projected',
+          status: 'forecast_projected',
           ownerId: req.user?._id,
           distributions,
           projection: totalValue,

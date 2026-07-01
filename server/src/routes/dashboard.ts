@@ -49,8 +49,9 @@ router.get('/summary', async (req: AuthRequest, res: Response, next: NextFunctio
     const fyForecasts  = allForecasts.filter((f) => f.fy === fy);
 
     const totalForecastValue = fyForecasts.reduce((s, f) => s + f.totalValue, 0);
-    const signedValue        = fyForecasts.filter((f) => f.status === 'signed').reduce((s, f) => s + f.totalValue, 0);
-    const projectedValue     = fyForecasts.filter((f) => f.status === 'projected').reduce((s, f) => s + f.totalValue, 0);
+    // Numeric PO-driven rollups (forecast status is now a manual lifecycle field).
+    const signedValue        = fyForecasts.reduce((s, f) => s + (f.signedValue || 0), 0);
+    const projectedValue     = fyForecasts.reduce((s, f) => s + (f.projectedValue || 0), 0);
     const conversionRate     = totalForecastValue > 0
       ? Math.round((signedValue / totalForecastValue) * 1000) / 10
       : 0;

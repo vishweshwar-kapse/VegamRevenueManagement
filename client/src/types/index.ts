@@ -176,7 +176,11 @@ export interface CustomerPlant {
 
 // ─── Forecast ─────────────────────────────────────────────────────────────────
 
-export type ForecastStatus = 'projected' | 'signed' | 'closed';
+export type ForecastStatus =
+  | 'forecast_projected'
+  | 'partial_sow_partial_projected'
+  | 'partial_sow_partial_closed'
+  | 'forecast_cancelled';
 
 export interface ForecastDistribution {
   fy: string;
