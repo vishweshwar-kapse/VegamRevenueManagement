@@ -13,14 +13,12 @@ export interface CreateSOWPayload {
   plantId: string;
   title: string;
   description?: string;
+  status?: SOWStatus;
   milestones: SOWMilestonePayload[];
   forecastId?: string;
   autoCreateForecast?: boolean;
-  updateForecast?: boolean;
   notes?: string;
 }
-
-
 
 export interface SOWListParams {
   status?: SOWStatus;

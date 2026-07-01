@@ -68,10 +68,12 @@ export function generateInvoicePdf(data: InvoicePdfData): Promise<string> {
       if (fs.existsSync(LOGO_PATH)) {
         try {
           doc.image(LOGO_PATH, pageLeft, headerTop, { fit: [160, 60] });
-        } catch {
-          doc.fontSize(26).fillColor(ACCENT).text('VEGAM', pageLeft, headerTop);
+        } catch (err) {
+          console.error('[invoicePdf] Failed to embed logo:', err);
+          doc.fontSize(26).fillColor(ACCENT).font('Helvetica-Bold').text('VEGAM', pageLeft, headerTop);
         }
       } else {
+        console.warn('[invoicePdf] Logo not found at:', LOGO_PATH);
         doc.fontSize(26).fillColor(ACCENT).font('Helvetica-Bold').text('VEGAM', pageLeft, headerTop);
       }
 

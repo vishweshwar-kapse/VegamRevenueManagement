@@ -21,8 +21,6 @@ export interface ForecastListParams {
   plantId?: string;
   page?: number;
   limit?: number;
-  unlinked?: boolean;
-  currentSowId?: string;
 }
 
 export const forecastsApi = {

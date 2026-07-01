@@ -148,16 +148,13 @@ export default function SOWFormDrawer({ open, sow, onClose, onSuccess }: Props) 
     resetSelectors,
   } = useFormSelectors({ open });
 
-  // Forecasts available for the selected customer — excludes those already linked to
-  // another SOW. In edit mode we pass currentSowId so the SOW's own forecast stays visible.
-  const currentSowId = sow?._id;
+  // Forecasts available for the selected customer. A forecast can back multiple
+  // SOWs, so every active forecast for the customer is selectable here.
   const { data: forecastsData } = useQuery({
-    queryKey: ['forecasts-for-sow', selectedCustomerId, currentSowId],
+    queryKey: ['forecasts-for-sow', selectedCustomerId],
     queryFn: () => forecastsApi.list({
       customerId: selectedCustomerId,
       limit: 200,
-      unlinked: true,
-      currentSowId,
     }),
     enabled: open && !!selectedCustomerId,
   });
@@ -296,6 +293,7 @@ export default function SOWFormDrawer({ open, sow, onClose, onSuccess }: Props) 
       plantId: values.plantId,
       title: values.title,
       description: values.description,
+      status: values.status,
       milestones: milestones.map((m) => ({
         description: m.description,
         amount: m.amount,
@@ -303,7 +301,6 @@ export default function SOWFormDrawer({ open, sow, onClose, onSuccess }: Props) 
       })),
       forecastId: values.forecastId,
       autoCreateForecast: autoCreate,
-      updateForecast: hasLinkedForecast && forecastMismatch,
       notes: values.notes,
     };
 
@@ -629,15 +626,16 @@ export default function SOWFormDrawer({ open, sow, onClose, onSuccess }: Props) 
           />
         </Form.Item>
 
-        {/* Mismatch warning — shown when a forecast is selected but FY totals differ */}
+        {/* Mismatch note — a forecast can back several SOWs, so its projection is
+            kept independent of any single SOW's milestone totals. Purely informational. */}
         {selectedForecast && forecastMismatch && (
           <Alert
-            type="warning"
+            type="info"
             showIcon
             icon={<ExclamationCircleOutlined />}
             style={{ marginBottom: 16 }}
-            message="Milestone totals do not match the selected forecast"
-            description="The forecast distributions will be automatically updated to match these milestones when you save."
+            message="Milestone totals differ from the forecast projection"
+            description="That's expected — a forecast can back multiple SOWs, so its projection is kept separate from any single SOW's milestones."
           />
         )}
 

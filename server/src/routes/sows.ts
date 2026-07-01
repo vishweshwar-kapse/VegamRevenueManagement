@@ -130,6 +130,7 @@ router.post(
     body('milestones.*.description').trim().notEmpty().withMessage('Milestone description is required'),
     body('milestones.*.amount').isFloat({ min: 0 }).withMessage('Milestone amount must be ≥ 0'),
     body('milestones.*.deliveryDate').isISO8601().withMessage('Milestone delivery date must be a valid date'),
+    body('status').optional().isIn(['draft', 'submitted', 'linked', 'partially_accepted', 'accepted', 'closed', 'archived']),
     body('forecastId').optional().isMongoId(),
     body('autoCreateForecast').optional().isBoolean(),
     body('notes').optional().isString(),
@@ -142,7 +143,7 @@ router.post(
         return;
       }
 
-      const { entityId, customerId, plantId, title, description, milestones, notes, forecastId, autoCreateForecast } = req.body;
+      const { entityId, customerId, plantId, title, description, status, milestones, notes, forecastId, autoCreateForecast } = req.body;
 
       const plant = await CustomerPlant.findById(plantId).lean();
       if (!plant) {
@@ -173,16 +174,12 @@ router.post(
       let linkedForecastObjectId: mongoose.Types.ObjectId | undefined;
 
       if (forecastId) {
-        const alreadyClaimed = await SOW.findOne({ forecastId: new mongoose.Types.ObjectId(forecastId), isActive: true }).lean();
-        if (alreadyClaimed) {
-          res.status(409).json({ success: false, message: 'This forecast is already linked to another SOW. Each forecast can only be linked to one SOW.' });
-          return;
-        }
-
+        // One forecast may back many SOWs. We only record this SOW as one of the
+        // forecast's linked SOWs — the forecast keeps its own projection
+        // (distributions/totalValue) rather than being overwritten to match a
+        // single SOW, which would clobber the contributions of its other SOWs.
         linkedForecastObjectId = new mongoose.Types.ObjectId(forecastId);
-        // Update distributions AND link the SOW in one atomic operation.
         await Forecast.findByIdAndUpdate(forecastId, {
-          $set: { distributions: distributions as any, totalValue },
           $addToSet: { linkedSOWIds: sowObjectId },
         });
       } else if (autoCreateForecast) {
@@ -223,7 +220,7 @@ router.post(
         totalValue,
         currency,
         milestones: parsedMilestones,
-        status: 'draft',
+        status: status || 'draft',
         ownerId: req.user?._id,
         documents: [],
         currentVersion: 1,
@@ -251,7 +248,6 @@ router.put(
     body('status').optional().isIn(['draft', 'submitted', 'linked', 'partially_accepted', 'accepted', 'closed', 'archived']),
     body('milestones').optional().isArray({ min: 1 }),
     body('forecastId').optional().isMongoId(),
-    body('updateForecast').optional().isBoolean(),
     body('notes').optional().isString(),
   ],
   async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {
@@ -275,7 +271,7 @@ router.put(
         }
       }
 
-      const { title, description, status, milestones, notes, forecastId, updateForecast } = req.body;
+      const { title, description, status, milestones, notes, forecastId } = req.body;
 
       if (title !== undefined) sow.title = title;
       if (description !== undefined) sow.description = description;
@@ -283,18 +279,21 @@ router.put(
       if (notes !== undefined) sow.notes = notes;
 
       if (forecastId !== undefined) {
-        if (forecastId) {
-          const alreadyClaimed = await SOW.findOne({
-            forecastId: new mongoose.Types.ObjectId(forecastId),
-            isActive: true,
-            _id: { $ne: sow._id },
-          }).lean();
-          if (alreadyClaimed) {
-            res.status(409).json({ success: false, message: 'This forecast is already linked to another SOW. Each forecast can only be linked to one SOW.' });
-            return;
+        const newForecastId = forecastId ? new mongoose.Types.ObjectId(forecastId) : undefined;
+        const previousForecastId = sow.forecastId;
+
+        // A forecast may back many SOWs, so we only add/remove THIS SOW from each
+        // forecast's linkedSOWIds list — we never overwrite the forecast's own
+        // projection to match a single SOW.
+        if (String(previousForecastId || '') !== String(newForecastId || '')) {
+          if (previousForecastId) {
+            await Forecast.findByIdAndUpdate(previousForecastId, { $pull: { linkedSOWIds: sow._id } });
+          }
+          if (newForecastId) {
+            await Forecast.findByIdAndUpdate(newForecastId, { $addToSet: { linkedSOWIds: sow._id } });
           }
         }
-        sow.forecastId = forecastId ? new mongoose.Types.ObjectId(forecastId) : undefined;
+        sow.forecastId = newForecastId;
       }
 
       if (milestones !== undefined) {
@@ -305,14 +304,6 @@ router.put(
         }));
         sow.milestones = parsedMilestones as any;
         sow.totalValue = parsedMilestones.reduce((s: number, m: any) => s + m.amount, 0);
-
-        const linkedId = forecastId || sow.forecastId;
-        if (linkedId && updateForecast) {
-          const updatedDistributions = buildDistributionsFromMilestones(parsedMilestones);
-          await Forecast.findByIdAndUpdate(linkedId, {
-            $set: { distributions: updatedDistributions as any, totalValue: sow.totalValue },
-          });
-        }
       }
 
       await sow.save();

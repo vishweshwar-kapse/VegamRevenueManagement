@@ -2,7 +2,6 @@ import { Router, Response, NextFunction } from 'express';
 import { body, query, validationResult } from 'express-validator';
 import mongoose from 'mongoose';
 import Forecast from '../models/Forecast';
-import SOW from '../models/SOW';
 import CustomerPlant from '../models/CustomerPlant';
 import Customer from '../models/Customer';
 import User, { FORECAST_ROLES } from '../models/User';
@@ -86,12 +85,10 @@ router.get(
     query('plantId').optional().isMongoId(),
     query('page').optional().isInt({ min: 1 }),
     query('limit').optional().isInt({ min: 1, max: 200 }),
-    query('unlinked').optional().isBoolean(),
-    query('currentSowId').optional().isMongoId(),
   ],
   async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const { fy, status, customerId, plantId, page = 1, limit = 50, unlinked, currentSowId } = req.query;
+      const { fy, status, customerId, plantId, page = 1, limit = 50 } = req.query;
 
       const filter: Record<string, unknown> = { isActive: true };
       if (fy) filter.fy = fy;
@@ -106,19 +103,6 @@ router.get(
         filter.plantId = plantId
           ? { $in: allowedSites.map(String).includes(String(plantId)) ? [plantId] : [] }
           : { $in: allowedSites };
-      }
-
-      // Exclude forecasts already claimed by another SOW (1-to-1 rule).
-      // If currentSowId is supplied the caller is editing that SOW, so its own
-      // linked forecast is still available.
-      if (unlinked === 'true') {
-        const sowFilter: Record<string, unknown> = { isActive: true, forecastId: { $exists: true, $ne: null } };
-        if (currentSowId) {
-          sowFilter._id = { $ne: new mongoose.Types.ObjectId(currentSowId as string) };
-        }
-        const linkedSows = await SOW.find(sowFilter).select('forecastId').lean();
-        const usedIds = linkedSows.map((s) => s.forecastId).filter(Boolean);
-        filter._id = { $nin: usedIds };
       }
 
       const total = await Forecast.countDocuments(filter);
