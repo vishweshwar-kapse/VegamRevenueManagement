@@ -55,8 +55,8 @@ export const SOW_STATUS_LABELS: Record<SOWStatus, string> = {
   submitted:          'Submitted',
   linked:             'Linked',
   partially_accepted: 'Partially Accepted',
-  accepted:           'Accepted',
-  closed:             'Closed',
+  accepted:           'Fully Accepted',
+  closed:             'Closed/Cancelled',
   archived:           'Archived',
 };
 

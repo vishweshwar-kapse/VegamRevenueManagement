@@ -506,8 +506,8 @@ export default function SOWFormDrawer({ open, sow, onClose, onSuccess }: Props) 
               { value: 'linked',    label: 'Linked' },
               // System-driven by PO allocations — shown for context, not selectable.
               { value: 'partially_accepted', label: 'Partially Accepted', disabled: true },
-              { value: 'accepted',           label: 'Accepted',           disabled: true },
-              { value: 'closed',    label: 'Closed' },
+              { value: 'accepted',           label: 'Fully Accepted',     disabled: true },
+              { value: 'closed',    label: 'Closed/Cancelled' },
               { value: 'archived',  label: 'Archived' },
             ]}
           />

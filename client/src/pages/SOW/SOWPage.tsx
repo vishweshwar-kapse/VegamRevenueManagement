@@ -256,8 +256,8 @@ export default function SOWPage() {
               { value: 'submitted',          label: 'Submitted' },
               { value: 'linked',             label: 'Linked' },
               { value: 'partially_accepted', label: 'Partially Accepted' },
-              { value: 'accepted',           label: 'Accepted' },
-              { value: 'closed',             label: 'Closed' },
+              { value: 'accepted',           label: 'Fully Accepted' },
+              { value: 'closed',             label: 'Closed/Cancelled' },
               { value: 'archived',           label: 'Archived' },
             ]}
           />
