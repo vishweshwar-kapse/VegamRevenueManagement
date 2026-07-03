@@ -66,6 +66,16 @@ app.use('/api/dashboard', dashboardRoutes);
 // app.use('/api/reports', reportRoutes);
 // app.use('/api/dashboard', dashboardRoutes);
 
+// Serve the React build in production (single-origin: client + API on one port)
+if (process.env.NODE_ENV === 'production') {
+  const clientDist = path.join(__dirname, '../../client/dist');
+  app.use(express.static(clientDist));
+  // SPA fallback — any route that isn't /api or /uploads returns index.html
+  app.get(/^(?!\/api|\/uploads).*/, (_req, res) => {
+    res.sendFile(path.join(clientDist, 'index.html'));
+  });
+}
+
 // 404 handler
 app.use(notFound);
 
