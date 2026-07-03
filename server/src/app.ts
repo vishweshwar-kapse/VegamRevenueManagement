@@ -18,8 +18,16 @@ import { errorHandler, notFound } from './middleware/errorHandler';
 
 const app = express();
 
-// Security headers
-app.use(helmet());
+// Security headers.
+// HTTP-only intranet deployment: disable the HTTPS-forcing headers so browsers
+// don't upgrade asset requests to https (which the server can't answer).
+// Re-enable/tune these once the app is fronted by HTTPS.
+app.use(
+  helmet({
+    contentSecurityPolicy: false, // drops the `upgrade-insecure-requests` directive
+    hsts: false, // don't send Strict-Transport-Security
+  })
+);
 
 // CORS
 app.use(
