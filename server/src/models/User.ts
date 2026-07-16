@@ -24,6 +24,10 @@ export interface IUser extends Document {
   emailOtpHash?: string;
   emailOtpExpires?: Date;
   emailOtpAttempts?: number;
+  // Forgot-password reset (OTP sent to the account's own email)
+  resetOtpHash?: string;
+  resetOtpExpires?: Date;
+  resetOtpAttempts?: number;
   assignedSites: mongoose.Types.ObjectId[];
   assignedCustomers: mongoose.Types.ObjectId[];
   createdAt: Date;
@@ -73,6 +77,9 @@ const UserSchema = new Schema<IUser>(
     emailOtpHash: { type: String, select: false },
     emailOtpExpires: { type: Date, select: false },
     emailOtpAttempts: { type: Number, default: 0, select: false },
+    resetOtpHash: { type: String, select: false },
+    resetOtpExpires: { type: Date, select: false },
+    resetOtpAttempts: { type: Number, default: 0, select: false },
     assignedSites: [{ type: Schema.Types.ObjectId, ref: 'CustomerPlant' }],
     assignedCustomers: [{ type: Schema.Types.ObjectId, ref: 'Customer' }],
   },

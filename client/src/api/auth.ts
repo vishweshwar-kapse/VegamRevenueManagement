@@ -22,6 +22,12 @@ export const authApi = {
   changePassword: (payload: { currentPassword: string; newPassword: string }) =>
     apiClient.post('/auth/change-password', payload),
 
+  forgotPassword: (email: string) =>
+    apiClient.post<{ success: boolean; message: string }>('/auth/forgot-password', { email }),
+
+  resetPassword: (payload: { email: string; otp: string; newPassword: string }) =>
+    apiClient.post<{ success: boolean; message: string }>('/auth/reset-password', payload),
+
   uploadAvatar: (file: File) => {
     const form = new FormData();
     form.append('file', file);

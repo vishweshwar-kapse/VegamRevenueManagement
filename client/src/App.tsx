@@ -3,6 +3,7 @@ import { useAuthStore } from '@/store/authStore';
 import AppLayout from '@/components/Layout/AppLayout';
 import LoginPage from '@/pages/Auth/LoginPage';
 import ChangePasswordPage from '@/pages/Auth/ChangePasswordPage';
+import ForgotPasswordPage from '@/pages/Auth/ForgotPasswordPage';
 
 // Pages — lazy loaded
 import { lazy, Suspense } from 'react';
@@ -59,6 +60,14 @@ export default function App() {
           element={
             <PublicRoute>
               <LoginPage />
+            </PublicRoute>
+          }
+        />
+        <Route
+          path="/forgot-password"
+          element={
+            <PublicRoute>
+              <ForgotPasswordPage />
             </PublicRoute>
           }
         />

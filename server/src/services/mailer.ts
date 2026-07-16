@@ -53,3 +53,16 @@ export async function sendOtpEmail(to: string, otp: string, userName: string): P
     </div>`;
   await sendMail(to, subject, html);
 }
+
+export async function sendPasswordResetEmail(to: string, otp: string, userName: string): Promise<void> {
+  const subject = 'Reset your Vegam Revenue password';
+  const html = `
+    <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto;">
+      <h2 style="color:#1a56db;">Password reset</h2>
+      <p>Hi ${userName || 'there'},</p>
+      <p>We received a request to reset your Vegam Revenue Management password. Use this one-time code to set a new password:</p>
+      <p style="font-size:28px; font-weight:700; letter-spacing:4px; color:#001529;">${otp}</p>
+      <p style="color:#888;">This code expires in 10 minutes. If you didn't request a password reset, you can safely ignore this email — your password will not change.</p>
+    </div>`;
+  await sendMail(to, subject, html);
+}

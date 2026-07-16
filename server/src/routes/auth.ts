@@ -4,7 +4,7 @@ import crypto from 'crypto';
 import User from '../models/User';
 import { generateToken, protect, AuthRequest } from '../middleware/auth';
 import { uploadAvatar } from '../middleware/upload';
-import { isMailerConfigured, sendOtpEmail } from '../services/mailer';
+import { isMailerConfigured, sendOtpEmail, sendPasswordResetEmail } from '../services/mailer';
 
 const router = Router();
 
@@ -59,6 +59,118 @@ router.post(
           avatarUrl: user.avatarUrl,
         },
       });
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+/**
+ * POST /api/auth/forgot-password
+ * Public. If an active account exists for the email, email it a reset OTP.
+ * Always responds the same way to avoid revealing whether an email is registered.
+ */
+router.post(
+  '/forgot-password',
+  [body('email').isEmail().normalizeEmail().withMessage('A valid email is required')],
+  async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    // Generic response used regardless of whether the account exists.
+    const generic = 'If an account exists for that email, a reset code has been sent.';
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        res.status(400).json({ success: false, errors: errors.array() });
+        return;
+      }
+      if (!isMailerConfigured()) {
+        res.status(503).json({
+          success: false,
+          message: 'Password reset by email is not configured on the server. Contact your administrator.',
+        });
+        return;
+      }
+
+      const { email } = req.body;
+      const user = await User.findOne({ email, isActive: true }).select(
+        '+resetOtpHash +resetOtpExpires +resetOtpAttempts'
+      );
+
+      if (user) {
+        const otp = String(crypto.randomInt(0, 1_000_000)).padStart(6, '0');
+        user.resetOtpHash = hashOtp(otp);
+        user.resetOtpExpires = new Date(Date.now() + OTP_TTL_MS);
+        user.resetOtpAttempts = 0;
+        await user.save();
+        try {
+          await sendPasswordResetEmail(user.email, otp, user.name);
+        } catch {
+          // Don't leak existence via a mailer error; log server-side only.
+          console.error(`Failed to send reset email to ${user.email}`);
+        }
+      }
+
+      res.json({ success: true, message: generic });
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+/**
+ * POST /api/auth/reset-password
+ * Public. Verify the emailed OTP and set a new password.
+ */
+router.post(
+  '/reset-password',
+  [
+    body('email').isEmail().normalizeEmail().withMessage('A valid email is required'),
+    body('otp').trim().notEmpty().withMessage('Enter the verification code'),
+    body('newPassword').isLength({ min: 8 }).withMessage('Password must be at least 8 characters'),
+  ],
+  async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        res.status(400).json({ success: false, errors: errors.array() });
+        return;
+      }
+
+      const { email, otp, newPassword } = req.body;
+      const user = await User.findOne({ email, isActive: true }).select(
+        '+password +resetOtpHash +resetOtpExpires +resetOtpAttempts'
+      );
+
+      // Generic failure message — never distinguishes bad email from bad code.
+      const invalid = () =>
+        res.status(400).json({ success: false, message: 'Invalid or expired reset code.' });
+
+      if (!user || !user.resetOtpHash || !user.resetOtpExpires) {
+        invalid();
+        return;
+      }
+      if (user.resetOtpExpires.getTime() < Date.now()) {
+        invalid();
+        return;
+      }
+      if ((user.resetOtpAttempts || 0) >= OTP_MAX_ATTEMPTS) {
+        res.status(429).json({ success: false, message: 'Too many attempts. Request a new reset code.' });
+        return;
+      }
+      if (hashOtp(String(otp).trim()) !== user.resetOtpHash) {
+        user.resetOtpAttempts = (user.resetOtpAttempts || 0) + 1;
+        await user.save();
+        invalid();
+        return;
+      }
+
+      user.password = newPassword;
+      user.mustChangePassword = false;
+      user.resetOtpHash = undefined;
+      user.resetOtpExpires = undefined;
+      user.resetOtpAttempts = 0;
+      await user.save();
+
+      res.json({ success: true, message: 'Password has been reset. You can now sign in.' });
     } catch (error) {
       next(error);
     }
