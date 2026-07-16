@@ -83,3 +83,33 @@ export const uploadPO = multer({
   fileFilter: contractFileFilter,
   limits: { fileSize: 20 * 1024 * 1024 },
 }).array('files', 10);
+
+// ─── Avatar / profile picture upload ────────────────────────────────────────
+
+const avatarStorage = multer.diskStorage({
+  destination: (_req, _file, cb) => {
+    const dir = path.join(__dirname, '../../uploads/avatars');
+    ensureDir(dir);
+    cb(null, dir);
+  },
+  filename: (_req, file, cb) => {
+    const unique = `${Date.now()}-${Math.round(Math.random() * 1e6)}`;
+    cb(null, `avatar-${unique}${path.extname(file.originalname)}`);
+  },
+});
+
+const imageFileFilter = (
+  _req: Express.Request,
+  file: Express.Multer.File,
+  cb: multer.FileFilterCallback
+) => {
+  const allowed = ['image/png', 'image/jpeg', 'image/jpg', 'image/gif', 'image/webp'];
+  if (allowed.includes(file.mimetype)) cb(null, true);
+  else cb(new Error('Only image files (PNG, JPG, GIF, WEBP) are allowed'));
+};
+
+export const uploadAvatar = multer({
+  storage: avatarStorage,
+  fileFilter: imageFileFilter,
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5 MB
+}).single('file');

@@ -19,6 +19,7 @@ const RepositoryPage = lazy(() => import('@/pages/Repository/RepositoryPage'));
 const BulkUploadPage = lazy(() => import('@/pages/BulkUpload/BulkUploadPage'));
 const ReportsPage = lazy(() => import('@/pages/Reports/ReportsPage'));
 const AdminPage = lazy(() => import('@/pages/Admin/AdminPage'));
+const ProfilePage = lazy(() => import('@/pages/Profile/ProfilePage'));
 
 const PageLoader = () => (
   <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '50vh' }}>
@@ -160,6 +161,14 @@ export default function App() {
             element={
               <Suspense fallback={<PageLoader />}>
                 <AdminPage />
+              </Suspense>
+            }
+          />
+          <Route
+            path="profile"
+            element={
+              <Suspense fallback={<PageLoader />}>
+                <ProfilePage />
               </Suspense>
             }
           />

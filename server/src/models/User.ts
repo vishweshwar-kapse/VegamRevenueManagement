@@ -18,6 +18,12 @@ export interface IUser extends Document {
   role: UserRole;
   isActive: boolean;
   mustChangePassword: boolean;   // force a password change on next login
+  avatarUrl?: string;            // profile picture, served from /uploads/avatars
+  // Email-change verification (OTP sent to the new address)
+  pendingEmail?: string;
+  emailOtpHash?: string;
+  emailOtpExpires?: Date;
+  emailOtpAttempts?: number;
   assignedSites: mongoose.Types.ObjectId[];
   assignedCustomers: mongoose.Types.ObjectId[];
   createdAt: Date;
@@ -60,6 +66,13 @@ const UserSchema = new Schema<IUser>(
       type: Boolean,
       default: true,
     },
+    avatarUrl: { type: String },
+    // Email-change OTP state. select:false so these never leak via /auth/me
+    // or any populated user response.
+    pendingEmail: { type: String, lowercase: true, trim: true, select: false },
+    emailOtpHash: { type: String, select: false },
+    emailOtpExpires: { type: Date, select: false },
+    emailOtpAttempts: { type: Number, default: 0, select: false },
     assignedSites: [{ type: Schema.Types.ObjectId, ref: 'CustomerPlant' }],
     assignedCustomers: [{ type: Schema.Types.ObjectId, ref: 'Customer' }],
   },

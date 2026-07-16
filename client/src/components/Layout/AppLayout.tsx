@@ -87,7 +87,7 @@ export default function AppLayout() {
   }));
 
   const userDropdownItems = [
-    { key: 'profile', icon: <UserOutlined />, label: 'My Profile' },
+    { key: 'profile', icon: <UserOutlined />, label: 'My Profile', onClick: () => navigate('/profile') },
     { type: 'divider' as const },
     {
       key: 'logout',
@@ -221,6 +221,7 @@ export default function AppLayout() {
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
                 <Avatar
                   size={isMobile ? 30 : 34}
+                  src={user?.avatarUrl || undefined}
                   style={{ backgroundColor: '#1a56db', flexShrink: 0 }}
                   icon={<UserOutlined />}
                 />
