@@ -237,6 +237,11 @@ export default function ForecastFormDrawer({ open, forecast, onClose, onSuccess 
 
   const grandTotal = distributions.reduce((sum, d) => sum + d.q1 + d.q2 + d.q3 + d.q4, 0);
 
+  // Amount of this forecast that has entered "signed" state — i.e. confirmed by a
+  // Purchase Order via the linked SOWs (PO → SOW → Forecast cascade). Forecast-level
+  // total maintained server-side; shown as an indicator row on existing forecasts.
+  const signedValue = forecast?.signedValue ?? 0;
+
   const watchedProjection = Form.useWatch('projection', form);
   const projectionValue = Number(watchedProjection) || 0;
   const remainingValue = projectionValue - grandTotal;
@@ -484,6 +489,28 @@ export default function ForecastFormDrawer({ open, forecast, onClose, onSuccess 
                 {currency} {grandTotal.toLocaleString()}
               </Text>
             </div>
+            {isEdit && (
+              <div style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                padding: '8px 12px',
+                background: COLORS.bgSubtle,
+                border: `1px solid ${COLORS.borderLight}`,
+                borderRadius: 6,
+                marginBottom: 10,
+              }}>
+                <div>
+                  <Text strong style={{ fontSize: FONT_SIZE.md, color: COLORS.success }}>PO Signed</Text>
+                  <Text type="secondary" style={{ fontSize: FONT_SIZE.xs, display: 'block' }}>
+                    Confirmed by a PO via linked SOW(s)
+                  </Text>
+                </div>
+                <Text strong style={{ fontSize: FONT_SIZE.lg, color: COLORS.success }}>
+                  {currency} {signedValue.toLocaleString()}
+                </Text>
+              </div>
+            )}
           </>
         ) : (
           <Table
@@ -493,18 +520,38 @@ export default function ForecastFormDrawer({ open, forecast, onClose, onSuccess 
             size="small"
             style={{ marginBottom: 8 }}
             summary={() => (
-              <Table.Summary.Row>
-                <Table.Summary.Cell index={0}>
-                  <Text strong style={{ fontSize: FONT_SIZE.sm }}>Grand Total</Text>
-                </Table.Summary.Cell>
-                <Table.Summary.Cell index={1} colSpan={4} />
-                <Table.Summary.Cell index={5}>
-                  <Text strong style={{ fontSize: FONT_SIZE.md, color: COLORS.primary }}>
-                    {currency} {grandTotal.toLocaleString()}
-                  </Text>
-                </Table.Summary.Cell>
-                <Table.Summary.Cell index={6} />
-              </Table.Summary.Row>
+              <>
+                <Table.Summary.Row>
+                  <Table.Summary.Cell index={0}>
+                    <Text strong style={{ fontSize: FONT_SIZE.sm }}>Grand Total</Text>
+                  </Table.Summary.Cell>
+                  <Table.Summary.Cell index={1} colSpan={4} />
+                  <Table.Summary.Cell index={5}>
+                    <Text strong style={{ fontSize: FONT_SIZE.md, color: COLORS.primary }}>
+                      {currency} {grandTotal.toLocaleString()}
+                    </Text>
+                  </Table.Summary.Cell>
+                  <Table.Summary.Cell index={6} />
+                </Table.Summary.Row>
+                {isEdit && (
+                  <Table.Summary.Row>
+                    <Table.Summary.Cell index={0}>
+                      <Text strong style={{ fontSize: FONT_SIZE.sm, color: COLORS.success }}>PO Signed</Text>
+                    </Table.Summary.Cell>
+                    <Table.Summary.Cell index={1} colSpan={4}>
+                      <Text type="secondary" style={{ fontSize: FONT_SIZE.xs }}>
+                        Confirmed by a PO via linked SOW(s)
+                      </Text>
+                    </Table.Summary.Cell>
+                    <Table.Summary.Cell index={5}>
+                      <Text strong style={{ fontSize: FONT_SIZE.md, color: COLORS.success }}>
+                        {currency} {signedValue.toLocaleString()}
+                      </Text>
+                    </Table.Summary.Cell>
+                    <Table.Summary.Cell index={6} />
+                  </Table.Summary.Row>
+                )}
+              </>
             )}
           />
         )}

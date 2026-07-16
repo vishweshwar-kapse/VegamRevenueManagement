@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import {
   Card, Table, Button, Tag, Space, Typography, Select, Input, Statistic,
-  Row, Col, Popconfirm, Tooltip, message, Grid, Empty,
+  Row, Col, Popconfirm, Tooltip, message, Grid, Empty, Modal,
 } from 'antd';
 import {
   PlusOutlined, EditOutlined, DeleteOutlined, SearchOutlined,
@@ -9,10 +9,18 @@ import {
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import dayjs from 'dayjs';
 import { forecastsApi } from '@/api/forecasts';
+import { entitiesApi } from '@/api/entities';
+import { customersApi } from '@/api/customers';
+import { customerPlantsApi } from '@/api/customerPlants';
 import { Forecast, ForecastStatus, Customer, CustomerPlant } from '@/types';
 import { useIsForecastUser } from '@/store/authStore';
 import { FORECAST_STATUS_COLORS, FORECAST_STATUS_LABELS, COLORS, FONT_SIZE } from '@/constants/theme';
 import { fmt } from '@/utils/format';
+import BulkUploadSection from '@/components/BulkUpload/BulkUploadSection';
+import {
+  ForecastRefData, FailedRow, generateTemplate, parseAndValidate,
+  buildErrorWorkbook, exportForecasts, payloadToFailedRow, saveBlob,
+} from '@/utils/forecastBulk';
 import ForecastFormDrawer from './ForecastFormDrawer';
 
 const { Title, Text } = Typography;
@@ -82,6 +90,92 @@ export default function ForecastPage() {
   const openEdit = (f: Forecast) => {
     setSelectedForecast(f);
     setDrawerOpen(true);
+  };
+
+  // ── Bulk upload ────────────────────────────────────────────────────────────
+  const today = () => new Date().toISOString().slice(0, 10);
+
+  const loadRefData = async (): Promise<ForecastRefData> => {
+    const [eRes, cRes, pRes] = await Promise.all([
+      entitiesApi.list(),
+      customersApi.list({ isActive: true, limit: 500 }),
+      customerPlantsApi.listAll(),
+    ]);
+    return {
+      entities: (eRes.data as any)?.data || [],
+      customers: (cRes.data as any)?.data || [],
+      plants: (pRes.data as any)?.data || [],
+    };
+  };
+
+  const handleDownloadTemplate = async () => {
+    try {
+      const ref = await loadRefData();
+      saveBlob(await generateTemplate(ref), 'forecast-import-template.xlsx');
+    } catch {
+      message.error('Failed to generate the template');
+    }
+  };
+
+  const handleUpload = async (file: File) => {
+    try {
+      const ref = await loadRefData();
+      const { valid, failed, totalDataRows } = await parseAndValidate(file, ref);
+
+      if (totalDataRows === 0) {
+        message.warning('The uploaded file has no data rows.');
+        return;
+      }
+
+      // Upload the client-valid rows; collect any server-side rejections.
+      const serverFailed: FailedRow[] = [];
+      let uploaded = 0;
+      for (const item of valid) {
+        try {
+          await forecastsApi.create(item.payload);
+          uploaded += 1;
+        } catch (err: any) {
+          const msg =
+            err?.response?.data?.message ||
+            err?.response?.data?.errors?.[0]?.msg ||
+            'Server rejected this record';
+          serverFailed.push(payloadToFailedRow(item.payload, ref, msg));
+        }
+      }
+
+      if (uploaded > 0) {
+        qc.invalidateQueries({ queryKey: ['forecasts'] });
+        qc.invalidateQueries({ queryKey: ['dashboard-summary'] });
+      }
+
+      const allFailed = [...failed, ...serverFailed];
+      if (allFailed.length > 0) {
+        saveBlob(await buildErrorWorkbook(allFailed), `forecast-upload-errors-${today()}.xlsx`);
+        Modal.warning({
+          title: 'Some records could not be uploaded',
+          content: `${uploaded} of ${totalDataRows} record(s) uploaded. ${allFailed.length} failed validation — a file containing only the failed rows has been downloaded, with the reason commented on each flagged cell.`,
+        });
+      } else {
+        Modal.success({
+          title: 'Upload successful',
+          content: `${uploaded} forecast${uploaded === 1 ? '' : 's'} uploaded successfully.`,
+        });
+      }
+    } catch (err: any) {
+      message.error(err?.message || 'Failed to process the uploaded file');
+    }
+  };
+
+  const handleExport = async () => {
+    if (forecasts.length === 0) {
+      message.info('No records to export.');
+      return;
+    }
+    try {
+      saveBlob(await exportForecasts(forecasts), `forecasts-${fy}-${today()}.xlsx`);
+    } catch {
+      message.error('Failed to export records');
+    }
   };
 
   // Signed / projected reflect actual PO-confirmed amounts (not whole-forecast
@@ -291,6 +385,15 @@ export default function ForecastPage() {
           />
         </Space>
       </Card>
+
+      {/* Bulk Upload */}
+      <BulkUploadSection
+        title="Bulk Upload"
+        description="Download the template, fill in your forecasts, and upload. Download exports the currently filtered records."
+        onDownloadTemplate={handleDownloadTemplate}
+        onUpload={handleUpload}
+        onExport={handleExport}
+      />
 
       {/* Table */}
       <Card size="small" styles={{ body: { padding: 0 } }}>

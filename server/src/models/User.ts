@@ -17,6 +17,7 @@ export interface IUser extends Document {
   password: string;
   role: UserRole;
   isActive: boolean;
+  mustChangePassword: boolean;   // force a password change on next login
   assignedSites: mongoose.Types.ObjectId[];
   assignedCustomers: mongoose.Types.ObjectId[];
   createdAt: Date;
@@ -50,6 +51,12 @@ const UserSchema = new Schema<IUser>(
       required: [true, 'Role is required'],
     },
     isActive: {
+      type: Boolean,
+      default: true,
+    },
+    // New accounts (admin-created or seeded) must set their own password on
+    // first login. Existing users predating this field read as false.
+    mustChangePassword: {
       type: Boolean,
       default: true,
     },

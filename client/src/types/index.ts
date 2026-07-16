@@ -39,6 +39,7 @@ export interface User {
   email: string;
   role: UserRole;
   isActive: boolean;
+  mustChangePassword?: boolean;
   assignedSites: string[] | CustomerPlant[];
   assignedCustomers: string[] | Customer[];
   createdAt: string;

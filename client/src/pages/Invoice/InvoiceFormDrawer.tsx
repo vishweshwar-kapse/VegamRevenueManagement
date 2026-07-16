@@ -8,7 +8,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import dayjs from 'dayjs';
 import { invoicesApi, CreateInvoicePayload } from '@/api/invoices';
 import { posApi } from '@/api/pos';
-import { Invoice, PO, Customer, InvoiceLineItem } from '@/types';
+import { Invoice, PO, Customer, CustomerPlant, InvoiceLineItem } from '@/types';
 import { useFormSelectors } from '@/hooks/useFormSelectors';
 import SectionLabel from '@/components/Form/SectionLabel';
 import { COLORS, FONT_SIZE } from '@/constants/theme';
@@ -42,7 +42,12 @@ export default function InvoiceFormDrawer({ open, invoice, onClose, onSuccess }:
   const [form] = Form.useForm();
   const isEdit = !!invoice;
 
-  const { customers, selectedCustomerId, setSelectedCustomerId, resetSelectors } = useFormSelectors({ open });
+  const {
+    customers, plants,
+    selectedCustomerId, setSelectedCustomerId,
+    selectedPlantId, setSelectedPlantId,
+    resetSelectors,
+  } = useFormSelectors({ open });
 
   const [lines, setLines] = useState<LineRow[]>([]);
 
@@ -69,13 +74,45 @@ export default function InvoiceFormDrawer({ open, invoice, onClose, onSuccess }:
     return first?.currency || customerPOs[0]?.currency || 'USD';
   }, [lines, poById, customerPOs]);
 
+  // ── Pay-By auto-fill from the selected site's credit period ──────────────────
+  // The chosen Site (CustomerPlant) drives the credit period: its creditPeriodDays
+  // overrides the customer default; Pay By = Invoice Date + credit period.
+  const creditPeriodDays = useMemo(() => {
+    const plant = selectedPlantId ? plants.find((p) => p._id === selectedPlantId) : undefined;
+    const customer = customers.find((c) => c._id === selectedCustomerId);
+    return plant?.creditPeriodDays ?? customer?.defaultCreditPeriodDays ?? 30;
+  }, [selectedPlantId, plants, customers, selectedCustomerId]);
+
+  const invoiceDate = Form.useWatch('invoiceDate', form);
+
+  // Auto-populate Pay By for new invoices when the invoice date or credit period changes.
+  // Edit mode keeps the invoice's saved pay-by date.
+  useEffect(() => {
+    if (!open || isEdit || !invoiceDate) return;
+    form.setFieldsValue({ payByDate: dayjs(invoiceDate).add(creditPeriodDays, 'day') });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, isEdit, invoiceDate, creditPeriodDays]);
+
+  // Default the Site to the customer's default plant once its plants load (create mode).
+  useEffect(() => {
+    if (!open || isEdit || !selectedCustomerId || selectedPlantId || plants.length === 0) return;
+    const def = plants.find((p) => p.isDefault) || plants[0];
+    setSelectedPlantId(def._id);
+    form.setFieldsValue({ plantId: def._id });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, isEdit, selectedCustomerId, plants, selectedPlantId]);
+
   // ── Populate on open / mode change ──────────────────────────────────────────
   useEffect(() => {
     if (!open) return;
 
     if (invoice) {
       const cId = typeof invoice.customerId === 'string' ? invoice.customerId : (invoice.customerId as Customer)._id;
+      const pId = invoice.plantId
+        ? (typeof invoice.plantId === 'string' ? invoice.plantId : (invoice.plantId as CustomerPlant)._id)
+        : '';
       setSelectedCustomerId(cId);
+      setSelectedPlantId(pId);
       setLines(
         invoice.lineItems.map((l: InvoiceLineItem) => ({
           poId: typeof l.poId === 'string' ? l.poId : (l.poId as PO)._id,
@@ -85,6 +122,7 @@ export default function InvoiceFormDrawer({ open, invoice, onClose, onSuccess }:
       );
       form.setFieldsValue({
         customerId: cId,
+        plantId: pId || undefined,
         invoiceDate: invoice.invoiceDate ? dayjs(invoice.invoiceDate) : dayjs(),
         payByDate: invoice.payByDate ? dayjs(invoice.payByDate) : dayjs().add(30, 'day'),
         taxAmount: invoice.taxAmount || 0,
@@ -160,6 +198,7 @@ export default function InvoiceFormDrawer({ open, invoice, onClose, onSuccess }:
 
     const payload: CreateInvoicePayload = {
       customerId: values.customerId,
+      plantId: values.plantId || selectedPlantId || undefined,
       invoiceDate: values.invoiceDate.format('YYYY-MM-DD'),
       payByDate: values.payByDate.format('YYYY-MM-DD'),
       lineItems: validLines.map((l) => ({ poId: l.poId, description: l.description, amount: l.amount })),
@@ -269,8 +308,30 @@ export default function InvoiceFormDrawer({ open, invoice, onClose, onSuccess }:
             }
             onChange={(id) => {
               setSelectedCustomerId(id);
+              setSelectedPlantId('');
+              form.setFieldsValue({ plantId: undefined });
               setLines([]);
             }}
+          />
+        </Form.Item>
+
+        <Form.Item
+          name="plantId"
+          label="Site"
+          rules={plants.length > 0 ? [{ required: true, message: 'Select a site' }] : []}
+        >
+          <Select
+            showSearch
+            placeholder={selectedCustomerId ? 'Select site' : 'Select a customer first'}
+            disabled={!selectedCustomerId}
+            options={plants.map((p) => ({
+              value: p._id,
+              label: p.isDefault ? `${p.plantName} (default)` : p.plantName,
+            }))}
+            filterOption={(input, option) =>
+              String(option?.label).toLowerCase().includes(input.toLowerCase())
+            }
+            onChange={(id) => setSelectedPlantId(id)}
           />
         </Form.Item>
 
@@ -280,7 +341,18 @@ export default function InvoiceFormDrawer({ open, invoice, onClose, onSuccess }:
           <Form.Item name="invoiceDate" label="Invoice Date" rules={[{ required: true, message: 'Required' }]}>
             <DatePicker style={{ width: '100%' }} format="DD MMM YYYY" />
           </Form.Item>
-          <Form.Item name="payByDate" label="Pay By" rules={[{ required: true, message: 'Required' }]}>
+          <Form.Item
+            name="payByDate"
+            label="Pay By"
+            rules={[{ required: true, message: 'Required' }]}
+            extra={
+              !isEdit && (
+                <Text type="secondary" style={{ fontSize: FONT_SIZE.xs }}>
+                  Auto-set from site credit period ({creditPeriodDays} days)
+                </Text>
+              )
+            }
+          >
             <DatePicker style={{ width: '100%' }} format="DD MMM YYYY" />
           </Form.Item>
         </div>

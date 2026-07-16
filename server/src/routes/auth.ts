@@ -48,6 +48,7 @@ router.post(
           name: user.name,
           email: user.email,
           role: user.role,
+          mustChangePassword: user.mustChangePassword,
         },
       });
     } catch (error) {
@@ -103,6 +104,7 @@ router.post(
       }
 
       user.password = newPassword;
+      user.mustChangePassword = false;
       await user.save();
 
       res.json({ success: true, message: 'Password updated successfully' });

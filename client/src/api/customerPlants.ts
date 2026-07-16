@@ -28,6 +28,12 @@ export const customerPlantsApi = {
       params: { customerId, isActive: true },
     }),
 
+  /** All active sites across every customer — used for bulk-upload code resolution. */
+  listAll: () =>
+    apiClient.get<ApiResponse<CustomerPlant[]>>('/customer-plants', {
+      params: { isActive: true },
+    }),
+
   getById: (id: string) =>
     apiClient.get<ApiResponse<CustomerPlant>>(`/customer-plants/${id}`),
 

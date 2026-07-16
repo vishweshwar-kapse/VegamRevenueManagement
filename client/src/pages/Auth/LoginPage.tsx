@@ -24,7 +24,7 @@ export default function LoginPage() {
     try {
       const { data } = await authApi.login(values);
       login(data.user, data.token);
-      navigate('/dashboard');
+      navigate(data.user.mustChangePassword ? '/change-password' : '/dashboard');
     } catch (err: unknown) {
       const axiosErr = err as { response?: { data?: { message?: string } } };
       setError(axiosErr.response?.data?.message || 'Login failed. Please try again.');

@@ -2,6 +2,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { useAuthStore } from '@/store/authStore';
 import AppLayout from '@/components/Layout/AppLayout';
 import LoginPage from '@/pages/Auth/LoginPage';
+import ChangePasswordPage from '@/pages/Auth/ChangePasswordPage';
 
 // Pages — lazy loaded
 import { lazy, Suspense } from 'react';
@@ -31,6 +32,16 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   return isAuthenticated ? <>{children}</> : <Navigate to="/login" replace />;
 };
 
+// Protected + forces a password change first (used for the main app subtree).
+// Keeps the user on /change-password until they set a new password.
+const AppGate = () => {
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const mustChangePassword = useAuthStore((s) => s.user?.mustChangePassword);
+  if (!isAuthenticated) return <Navigate to="/login" replace />;
+  if (mustChangePassword) return <Navigate to="/change-password" replace />;
+  return <AppLayout />;
+};
+
 // Public route wrapper (redirect to dashboard if already logged in)
 const PublicRoute = ({ children }: { children: React.ReactNode }) => {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
@@ -51,15 +62,18 @@ export default function App() {
           }
         />
 
-        {/* Protected routes — wrapped in main layout */}
+        {/* Forced password change (first login / after admin reset) */}
         <Route
-          path="/"
+          path="/change-password"
           element={
             <ProtectedRoute>
-              <AppLayout />
+              <ChangePasswordPage />
             </ProtectedRoute>
           }
-        >
+        />
+
+        {/* Protected routes — wrapped in main layout (password-change gated) */}
+        <Route path="/" element={<AppGate />}>
           <Route index element={<Navigate to="/dashboard" replace />} />
           <Route
             path="dashboard"

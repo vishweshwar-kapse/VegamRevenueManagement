@@ -162,6 +162,7 @@ router.post(
       }
 
       user.password = req.body.newPassword;
+      user.mustChangePassword = true; // force the user to set their own on next login
       await user.save();
 
       res.json({ success: true, message: 'Password reset successfully' });

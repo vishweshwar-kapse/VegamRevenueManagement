@@ -183,6 +183,7 @@ router.put(
   '/:id',
   authorize(...FORECAST_ROLES),
   [
+    body('plantId').optional().isMongoId(),
     body('invoiceDate').optional().isISO8601(),
     body('payByDate').optional().isISO8601(),
     body('lineItems').optional().isArray({ min: 1 }),
@@ -215,8 +216,9 @@ router.put(
         return;
       }
 
-      const { invoiceDate, payByDate, lineItems, taxAmount, taxDescription, description, notes } = req.body;
+      const { plantId, invoiceDate, payByDate, lineItems, taxAmount, taxDescription, description, notes } = req.body;
 
+      if (plantId !== undefined) invoice.plantId = plantId || undefined;
       if (invoiceDate !== undefined) invoice.invoiceDate = new Date(invoiceDate);
       if (payByDate !== undefined) invoice.payByDate = new Date(payByDate);
       if (taxAmount !== undefined) invoice.taxAmount = Number(taxAmount);
