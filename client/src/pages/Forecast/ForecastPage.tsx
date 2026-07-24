@@ -13,7 +13,7 @@ import { entitiesApi } from '@/api/entities';
 import { customersApi } from '@/api/customers';
 import { customerPlantsApi } from '@/api/customerPlants';
 import { Forecast, ForecastStatus, Customer, CustomerPlant } from '@/types';
-import { useIsForecastUser } from '@/store/authStore';
+import { useIsForecastUser, useAuthStore } from '@/store/authStore';
 import { FORECAST_STATUS_COLORS, FORECAST_STATUS_LABELS, COLORS, FONT_SIZE } from '@/constants/theme';
 import { fmt } from '@/utils/format';
 import BulkUploadSection from '@/components/BulkUpload/BulkUploadSection';
@@ -44,6 +44,7 @@ export default function ForecastPage() {
   const screens = useBreakpoint();
   const isMobile = !screens.md;
   const isForecastUser = useIsForecastUser();
+  const currentUser = useAuthStore((s) => s.user);
   const qc = useQueryClient();
 
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -95,16 +96,29 @@ export default function ForecastPage() {
   // ── Bulk upload ────────────────────────────────────────────────────────────
   const today = () => new Date().toISOString().slice(0, 10);
 
+  // Reference data for the template dropdowns — restricted to what THIS user can
+  // access, mirroring the drawer selectors (finance_admin sees everything;
+  // others see only their assigned customers/sites). Entities aren't
+  // access-controlled per user, so all are offered.
   const loadRefData = async (): Promise<ForecastRefData> => {
     const [eRes, cRes, pRes] = await Promise.all([
       entitiesApi.list(),
       customersApi.list({ isActive: true, limit: 500 }),
       customerPlantsApi.listAll(),
     ]);
+    const allEntities = (eRes.data as any)?.data || [];
+    const allCustomers: Customer[] = (cRes.data as any)?.data || [];
+    const allPlants: CustomerPlant[] = (pRes.data as any)?.data || [];
+
+    const isAdmin = currentUser?.role === 'finance_admin';
+    const idOf = (x: unknown) => (typeof x === 'string' ? x : (x as { _id: string })?._id);
+    const assignedCustomers = (currentUser?.assignedCustomers || []).map(idOf);
+    const assignedSites = (currentUser?.assignedSites || []).map(idOf);
+
     return {
-      entities: (eRes.data as any)?.data || [],
-      customers: (cRes.data as any)?.data || [],
-      plants: (pRes.data as any)?.data || [],
+      entities: allEntities,
+      customers: isAdmin ? allCustomers : allCustomers.filter((c) => assignedCustomers.includes(c._id)),
+      plants: isAdmin ? allPlants : allPlants.filter((p) => assignedSites.includes(p._id)),
     };
   };
 

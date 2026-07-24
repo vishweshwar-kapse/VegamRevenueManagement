@@ -172,8 +172,32 @@ export async function generateTemplate(ref: ForecastRefData): Promise<Blob> {
   const fyOptions = getFYOptions();
   const statusList = Object.values(STATUS_LABELS);
 
-  // Dropdown validation for FY and Status on the first 500 data rows.
+  // Dropdown validation on the first 500 data rows. Entity/Customer/Site pull
+  // from Reference-sheet ranges (inline lists are capped at 255 chars and the
+  // code lists can be long); FY/Status are short enough to inline.
+  const refRange = (col: string, count: number) => `Reference!$${col}$2:$${col}$${count + 1}`;
   for (let r = 2; r <= 500; r += 1) {
+    if (ref.entities.length > 0) {
+      ws.getCell(r, COL.entityCode).dataValidation = {
+        type: 'list', allowBlank: false, formulae: [refRange('A', ref.entities.length)],
+        showErrorMessage: true, errorTitle: 'Invalid entity',
+        error: 'Pick an Entity Code from the dropdown (see the Reference sheet).',
+      };
+    }
+    if (ref.customers.length > 0) {
+      ws.getCell(r, COL.customerCode).dataValidation = {
+        type: 'list', allowBlank: false, formulae: [refRange('C', ref.customers.length)],
+        showErrorMessage: true, errorTitle: 'Invalid customer',
+        error: 'Pick a Customer Code from the dropdown (see the Reference sheet).',
+      };
+    }
+    if (ref.plants.length > 0) {
+      ws.getCell(r, COL.siteCode).dataValidation = {
+        type: 'list', allowBlank: false, formulae: [refRange('E', ref.plants.length)],
+        showErrorMessage: true, errorTitle: 'Invalid site',
+        error: 'Pick a Site Code from the dropdown — it must belong to the chosen customer (see the Reference sheet).',
+      };
+    }
     ws.getCell(r, COL.fy).dataValidation = {
       type: 'list', allowBlank: false, formulae: [`"${fyOptions.join(',')}"`],
     };
@@ -194,24 +218,35 @@ export async function generateTemplate(ref: ForecastRefData): Promise<Blob> {
   hint(COL.status, 'Optional. Defaults to "Forecast Projected".');
   hint(COL.q1, 'Quarter amount (number ≥ 0). At least one quarter must be > 0.');
 
-  // Reference sheet listing valid codes so users don't guess.
+  // Reference sheet — the dropdowns above pull their lists from fixed columns
+  // here: Entity Code = A, Customer Code = C, Site Code = E (all starting row 2).
+  // Keep this layout in sync with the refRange() calls.
   const refWs = wb.addWorksheet('Reference');
-  refWs.columns = [{ width: 18 }, { width: 32 }, { width: 18 }, { width: 32 }];
-  styleHeaderRow(refWs.addRow(['Entity Code', 'Entity Name', 'Customer Code', 'Customer Name']));
-  const maxA = Math.max(ref.entities.length, ref.customers.length);
-  for (let i = 0; i < maxA; i += 1) {
+  refWs.columns = [
+    { width: 18 }, { width: 30 }, // A,B Entity
+    { width: 18 }, { width: 30 }, // C,D Customer
+    { width: 18 }, { width: 30 }, { width: 28 }, // E,F,G Site
+  ];
+  styleHeaderRow(refWs.addRow([
+    'Entity Code', 'Entity Name',
+    'Customer Code', 'Customer Name',
+    'Site Code', 'Site Name', 'Belongs to Customer',
+  ]));
+
+  const rows = Math.max(ref.entities.length, ref.customers.length, ref.plants.length);
+  for (let i = 0; i < rows; i += 1) {
     const e = ref.entities[i];
     const c = ref.customers[i];
-    refWs.addRow([e?.entityCode ?? '', e?.name ?? '', c?.code ?? '', c?.name ?? '']);
+    const p = ref.plants[i];
+    const pCust = p
+      ? (typeof p.customerId === 'string' ? '' : (p.customerId as Customer)?.name ?? '')
+      : '';
+    refWs.addRow([
+      e?.entityCode ?? '', e?.name ?? '',
+      c?.code ?? '', c?.name ?? '',
+      p?.plantCode ?? '', p?.plantName ?? '', pCust,
+    ]);
   }
-  refWs.addRow([]);
-  styleHeaderRow(refWs.addRow(['Site Code', 'Site Name', 'Belongs to Customer', '']));
-  ref.plants.forEach((p) => {
-    const custName = typeof p.customerId === 'string'
-      ? ''
-      : (p.customerId as Customer)?.name ?? '';
-    refWs.addRow([p.plantCode, p.plantName, custName, '']);
-  });
 
   return workbookToBlob(wb);
 }

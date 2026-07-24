@@ -57,6 +57,8 @@ router.post(
           role: user.role,
           mustChangePassword: user.mustChangePassword,
           avatarUrl: user.avatarUrl,
+          assignedSites: user.assignedSites,
+          assignedCustomers: user.assignedCustomers,
         },
       });
     } catch (error) {
