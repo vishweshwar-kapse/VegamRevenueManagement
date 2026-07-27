@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import {
   Card, Table, Button, Tag, Space, Typography, Select, Input, Statistic,
-  Row, Col, Popconfirm, Tooltip, message, Grid, Empty,
+  Row, Col, Popconfirm, Tooltip, message, Grid, Empty, Modal,
 } from 'antd';
 import {
   PlusOutlined, EditOutlined, DeleteOutlined, SearchOutlined,
@@ -10,10 +10,19 @@ import {
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import dayjs from 'dayjs';
 import { invoicesApi } from '@/api/invoices';
-import { Invoice, InvoiceStatus, Customer } from '@/types';
-import { useIsForecastUser } from '@/store/authStore';
+import { customersApi } from '@/api/customers';
+import { customerPlantsApi } from '@/api/customerPlants';
+import { posApi } from '@/api/pos';
+import { Invoice, InvoiceStatus, Customer, CustomerPlant, PO } from '@/types';
+import { useIsForecastUser, useAuthStore } from '@/store/authStore';
 import { INVOICE_STATUS_COLORS, INVOICE_STATUS_LABELS, COLORS, FONT_SIZE } from '@/constants/theme';
 import { fmt } from '@/utils/format';
+import BulkUploadSection from '@/components/BulkUpload/BulkUploadSection';
+import { saveBlob, today, FailedRow } from '@/utils/excelBulk';
+import {
+  InvoiceRefData, generateTemplate, parseAndValidate, buildInvoiceErrorWorkbook,
+  exportInvoices, payloadToFailedRow,
+} from '@/utils/invoiceBulk';
 import InvoiceFormDrawer from './InvoiceFormDrawer';
 
 const { Title, Text } = Typography;
@@ -23,6 +32,7 @@ export default function InvoicePage() {
   const screens = useBreakpoint();
   const isMobile = !screens.md;
   const isForecastUser = useIsForecastUser();
+  const currentUser = useAuthStore((s) => s.user);
   const qc = useQueryClient();
 
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -89,6 +99,92 @@ export default function InvoicePage() {
 
   const openCreate = () => { setSelectedInvoice(null); setDrawerOpen(true); };
   const openEdit = (inv: Invoice) => { setSelectedInvoice(inv); setDrawerOpen(true); };
+
+  // ── Bulk upload ────────────────────────────────────────────────────────────
+  // Reference data restricted to what THIS user can access (admins see all).
+  const loadRefData = async (): Promise<InvoiceRefData> => {
+    const [cRes, pRes, poRes] = await Promise.all([
+      customersApi.list({ isActive: true, limit: 500 }),
+      customerPlantsApi.listAll(),
+      posApi.list({ limit: 500 }),
+    ]);
+    const allCustomers: Customer[] = (cRes.data as any)?.data || [];
+    const allPlants: CustomerPlant[] = (pRes.data as any)?.data || [];
+    const allPos: PO[] = (poRes.data as any)?.data || [];
+
+    const isAdmin = currentUser?.role === 'finance_admin';
+    const idOf = (x: unknown) => (typeof x === 'string' ? x : (x as { _id: string })?._id);
+    const aCust = (currentUser?.assignedCustomers || []).map(idOf);
+    const aSite = (currentUser?.assignedSites || []).map(idOf);
+
+    return {
+      customers: isAdmin ? allCustomers : allCustomers.filter((c) => aCust.includes(c._id)),
+      plants: isAdmin ? allPlants : allPlants.filter((p) => aSite.includes(p._id)),
+      pos: isAdmin ? allPos : allPos.filter((po) => aCust.includes(String(idOf(po.customerId)))),
+    };
+  };
+
+  const handleDownloadTemplate = async () => {
+    try {
+      const ref = await loadRefData();
+      saveBlob(await generateTemplate(ref), 'invoice-import-template.xlsx');
+    } catch {
+      message.error('Failed to generate the template');
+    }
+  };
+
+  const handleUpload = async (file: File) => {
+    try {
+      const ref = await loadRefData();
+      const { valid, failed, totalDataRows } = await parseAndValidate(file, ref);
+      if (totalDataRows === 0) {
+        message.warning('The uploaded file has no data rows.');
+        return;
+      }
+
+      const serverFailed: FailedRow[] = [];
+      let uploaded = 0;
+      for (const item of valid) {
+        try {
+          await invoicesApi.create(item.payload);
+          uploaded += 1;
+        } catch (err: any) {
+          const msg = err?.response?.data?.message || err?.response?.data?.errors?.[0]?.msg || 'Server rejected this record';
+          serverFailed.push(payloadToFailedRow(item.payload, ref, msg));
+        }
+      }
+
+      if (uploaded > 0) invalidate();
+
+      const allFailed = [...failed, ...serverFailed];
+      if (allFailed.length > 0) {
+        saveBlob(await buildInvoiceErrorWorkbook(ref, allFailed), `invoice-upload-errors-${today()}.xlsx`);
+        Modal.warning({
+          title: 'Some records could not be uploaded',
+          content: `${uploaded} of ${totalDataRows} record(s) uploaded as drafts. ${allFailed.length} failed validation — a file with only the failed rows has been downloaded, with the reason commented on each flagged cell.`,
+        });
+      } else {
+        Modal.success({
+          title: 'Upload successful',
+          content: `${uploaded} invoice${uploaded === 1 ? '' : 's'} created as draft${uploaded === 1 ? '' : 's'}. Review and issue them from the list.`,
+        });
+      }
+    } catch (err: any) {
+      message.error(err?.message || 'Failed to process the uploaded file');
+    }
+  };
+
+  const handleExport = async () => {
+    if (invoices.length === 0) {
+      message.info('No records to export.');
+      return;
+    }
+    try {
+      saveBlob(await exportInvoices(invoices), `invoices-${today()}.xlsx`);
+    } catch {
+      message.error('Failed to export records');
+    }
+  };
 
   const totalBilled = invoices
     .filter((i) => i.status !== 'cancelled' && i.status !== 'draft')
@@ -287,6 +383,15 @@ export default function InvoicePage() {
           />
         </Space>
       </Card>
+
+      {/* Bulk Upload */}
+      <BulkUploadSection
+        title="Bulk Upload"
+        description="Download the template, fill in your invoices (one PO line per row), and upload — they're created as drafts. Download exports the currently filtered records."
+        onDownloadTemplate={handleDownloadTemplate}
+        onUpload={handleUpload}
+        onExport={handleExport}
+      />
 
       {/* Table */}
       <Card size="small" styles={{ body: { padding: 0 } }}>
