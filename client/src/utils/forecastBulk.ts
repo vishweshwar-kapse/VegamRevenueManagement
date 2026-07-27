@@ -160,9 +160,14 @@ function setupForecastSheet(ws: ExcelJS.Worksheet): void {
   ws.views = [{ state: 'frozen', ySplit: 1 }];
 }
 
-// ── 1. Template ────────────────────────────────────────────────────────────────
+// ── 1. Template / error workbook (shared shell) ─────────────────────────────────
 
-export async function generateTemplate(ref: ForecastRefData): Promise<Blob> {
+// Builds the workbook shell — dropdowns, header hints and Reference sheet —
+// shared by both the blank template and the validation-error file. When
+// dataRows are supplied, they are written under the header and the failed cells
+// are highlighted with a comment, so the error file keeps the same dropdowns and
+// Reference data as the template.
+async function buildForecastWorkbook(ref: ForecastRefData, dataRows: FailedRow[] = []): Promise<Blob> {
   const Excel = await loadExcelJS();
   const wb = new Excel.Workbook();
   wb.creator = 'Vegam Revenue Management';
@@ -218,6 +223,16 @@ export async function generateTemplate(ref: ForecastRefData): Promise<Blob> {
   hint(COL.status, 'Optional. Defaults to "Forecast Projected".');
   hint(COL.q1, 'Quarter amount (number ≥ 0). At least one quarter must be > 0.');
 
+  // Error file: write the failed rows and flag the offending cells.
+  dataRows.forEach((f) => {
+    const dataRow = ws.addRow(f.values);
+    f.errors.forEach(({ col, message }) => {
+      const cell = dataRow.getCell(col);
+      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: ERROR_ARGB } };
+      cell.note = { texts: [{ text: message }], margins: { insetmode: 'auto' } } as ExcelJS.Comment;
+    });
+  });
+
   // Reference sheet — the dropdowns above pull their lists from fixed columns
   // here: Entity Code = A, Customer Code = C, Site Code = E (all starting row 2).
   // Keep this layout in sync with the refRange() calls.
@@ -250,6 +265,8 @@ export async function generateTemplate(ref: ForecastRefData): Promise<Blob> {
 
   return workbookToBlob(wb);
 }
+
+export const generateTemplate = (ref: ForecastRefData): Promise<Blob> => buildForecastWorkbook(ref);
 
 // ── 2. Parse & validate an uploaded file ────────────────────────────────────────
 
@@ -393,29 +410,10 @@ export function payloadToFailedRow(
   };
 }
 
-// ── 3. Error workbook (only failed rows, with per-cell comments) ────────────────
+// ── 3. Error workbook — same shell as the template, plus the failed rows ─────────
 
-export async function buildErrorWorkbook(failed: FailedRow[]): Promise<Blob> {
-  const Excel = await loadExcelJS();
-  const wb = new Excel.Workbook();
-  wb.creator = 'Vegam Revenue Management';
-  const ws = wb.addWorksheet(SHEET_NAME);
-  setupForecastSheet(ws);
-
-  failed.forEach((f) => {
-    const row = ws.addRow(f.values);
-    f.errors.forEach(({ col, message }) => {
-      const cell = row.getCell(col);
-      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: ERROR_ARGB } };
-      cell.note = {
-        texts: [{ text: message }],
-        margins: { insetmode: 'auto' },
-      } as ExcelJS.Comment;
-    });
-  });
-
-  return workbookToBlob(wb);
-}
+export const buildErrorWorkbook = (ref: ForecastRefData, failed: FailedRow[]): Promise<Blob> =>
+  buildForecastWorkbook(ref, failed);
 
 // ── 4. Export current records ───────────────────────────────────────────────────
 

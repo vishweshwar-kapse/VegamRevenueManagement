@@ -3,7 +3,6 @@ import { body, query, validationResult } from 'express-validator';
 import mongoose from 'mongoose';
 import fs from 'fs';
 import Invoice from '../models/Invoice';
-import PO from '../models/PO';
 import Customer from '../models/Customer';
 import CustomerPlant from '../models/CustomerPlant';
 import User, { FORECAST_ROLES } from '../models/User';
@@ -11,6 +10,7 @@ import { protect, authorize, AuthRequest } from '../middleware/auth';
 import { generateInvoiceNumber } from '../utils/idGenerator';
 import { generateInvoicePdf } from '../services/invoicePdf';
 import { applyInvoiceDrawdown, reverseInvoiceDrawdown } from '../services/invoiceCascade';
+import { buildInvoiceLineItems, RawLineItem } from '../services/invoiceService';
 
 const router = Router();
 router.use(protect);
@@ -110,47 +110,17 @@ router.post(
 
       const { customerId, plantId, invoiceDate, payByDate, lineItems, taxAmount, taxDescription, description, notes } = req.body;
 
-      // Load and validate the POs: all must exist, be active, and belong to this customer.
-      const poIds = (lineItems as any[]).map((l) => l.poId);
-      const pos = await PO.find({ _id: { $in: poIds }, isActive: true });
-      if (pos.length !== poIds.length) {
-        res.status(400).json({ success: false, message: 'One or more POs were not found' });
-        return;
-      }
-      const poById = new Map(pos.map((p) => [String(p._id), p]));
-
-      const wrongCustomer = pos.find((p) => String(p.customerId) !== String(customerId));
-      if (wrongCustomer) {
-        res.status(400).json({ success: false, message: 'All POs must belong to the selected customer' });
-        return;
-      }
-
-      const currencies = new Set(pos.map((p) => p.currency));
-      if (currencies.size > 1) {
-        res.status(400).json({ success: false, message: 'All POs on one invoice must share the same currency' });
-        return;
-      }
-      const currency = pos[0].currency;
-
-      const builtLineItems = (lineItems as any[]).map((l) => {
-        const po = poById.get(String(l.poId))!;
-        return {
-          poId: po._id,
-          poNumber: po.poNumber,
-          description: (l.description && String(l.description).trim()) || po.milestones || `PO ${po.poNumber}`,
-          amount: Number(l.amount),
-        };
-      });
-
-      const invoiceValue = builtLineItems.reduce((s, l) => s + l.amount, 0);
+      // Validate the POs and build enriched line items (see invoiceService).
+      const built = await buildInvoiceLineItems(customerId, lineItems as RawLineItem[]);
+      const { lineItems: builtLineItems, poIds: builtPoIds, invoiceValue, currency, defaultPlantId } = built;
 
       const invoiceNumber = await generateInvoiceNumber();
       const invoice = await Invoice.create({
         invoiceNumber,
         customerId,
-        plantId: plantId || pos[0].plantId || undefined,
+        plantId: plantId || defaultPlantId || undefined,
         lineItems: builtLineItems,
-        poIds: builtLineItems.map((l) => l.poId),
+        poIds: builtPoIds,
         invoiceDate: new Date(invoiceDate),
         payByDate: new Date(payByDate),
         invoiceValue,
@@ -227,35 +197,11 @@ router.put(
       if (notes !== undefined) invoice.notes = notes;
 
       if (lineItems !== undefined) {
-        const poIds = (lineItems as any[]).map((l) => l.poId);
-        const pos = await PO.find({ _id: { $in: poIds }, isActive: true });
-        if (pos.length !== poIds.length) {
-          res.status(400).json({ success: false, message: 'One or more POs were not found' });
-          return;
-        }
-        const poById = new Map(pos.map((p) => [String(p._id), p]));
-        if (pos.some((p) => String(p.customerId) !== String(invoice.customerId))) {
-          res.status(400).json({ success: false, message: 'All POs must belong to the invoice customer' });
-          return;
-        }
-        if (new Set(pos.map((p) => p.currency)).size > 1) {
-          res.status(400).json({ success: false, message: 'All POs on one invoice must share the same currency' });
-          return;
-        }
-
-        const builtLineItems = (lineItems as any[]).map((l) => {
-          const po = poById.get(String(l.poId))!;
-          return {
-            poId: po._id,
-            poNumber: po.poNumber,
-            description: (l.description && String(l.description).trim()) || po.milestones || `PO ${po.poNumber}`,
-            amount: Number(l.amount),
-          };
-        });
-        invoice.lineItems = builtLineItems as any;
-        invoice.poIds = builtLineItems.map((l) => l.poId) as any;
-        invoice.invoiceValue = builtLineItems.reduce((s, l) => s + l.amount, 0);
-        invoice.request.requestedAmount = invoice.invoiceValue;
+        const built = await buildInvoiceLineItems(invoice.customerId, lineItems as RawLineItem[]);
+        invoice.lineItems = built.lineItems;
+        invoice.poIds = built.poIds;
+        invoice.invoiceValue = built.invoiceValue;
+        invoice.request.requestedAmount = built.invoiceValue;
       }
 
       await invoice.save();

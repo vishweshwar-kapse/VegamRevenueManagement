@@ -164,7 +164,7 @@ export default function ForecastPage() {
 
       const allFailed = [...failed, ...serverFailed];
       if (allFailed.length > 0) {
-        saveBlob(await buildErrorWorkbook(allFailed), `forecast-upload-errors-${today()}.xlsx`);
+        saveBlob(await buildErrorWorkbook(ref, allFailed), `forecast-upload-errors-${today()}.xlsx`);
         Modal.warning({
           title: 'Some records could not be uploaded',
           content: `${uploaded} of ${totalDataRows} record(s) uploaded. ${allFailed.length} failed validation — a file containing only the failed rows has been downloaded, with the reason commented on each flagged cell.`,
