@@ -7,6 +7,7 @@ const EntityListPage     = lazy(() => import('./EntityListPage'));
 const CustomerListPage   = lazy(() => import('./CustomerListPage'));
 const CustomerDetailPage = lazy(() => import('./CustomerDetailPage'));
 const UserListPage       = lazy(() => import('./UserListPage'));
+const CurrencyRatesPage  = lazy(() => import('./CurrencyRatesPage'));
 
 const Loader = () => (
   <div style={{ display: 'flex', justifyContent: 'center', padding: 60 }}>
@@ -22,6 +23,7 @@ export default function AdminPage() {
       <Route path="customers/:customerId" element={<Suspense fallback={<Loader />}><CustomerDetailPage /></Suspense>} />
       <Route path="entities" element={<Suspense fallback={<Loader />}><EntityListPage /></Suspense>} />
       <Route path="users" element={<Suspense fallback={<Loader />}><UserListPage /></Suspense>} />
+      <Route path="currency-rates" element={<Suspense fallback={<Loader />}><CurrencyRatesPage /></Suspense>} />
       <Route path="*" element={<Navigate to="/admin" replace />} />
     </Routes>
   );

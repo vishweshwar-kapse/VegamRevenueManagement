@@ -14,6 +14,7 @@ import poRoutes from './routes/pos';
 import invoiceRoutes from './routes/invoices';
 import dashboardRoutes from './routes/dashboard';
 import entityRoutes from './routes/entities';
+import currencyRateRoutes from './routes/currencyRates';
 import { errorHandler, notFound } from './middleware/errorHandler';
 
 const app = express();
@@ -60,6 +61,7 @@ app.use('/api/users', userRoutes);
 app.use('/api/customers', customerRoutes);
 app.use('/api/customer-plants', customerPlantRoutes);
 app.use('/api/entities', entityRoutes);
+app.use('/api/currency-rates', currencyRateRoutes);
 app.use('/api/forecasts', forecastRoutes);
 app.use('/api/sows', sowRoutes);
 app.use('/api/pos', poRoutes);

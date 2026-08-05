@@ -1,5 +1,5 @@
 import { Card, Row, Col, Typography, Grid } from 'antd';
-import { TeamOutlined, SettingOutlined, AuditOutlined } from '@ant-design/icons';
+import { TeamOutlined, SettingOutlined, AuditOutlined, DollarOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 
 const { Title, Text } = Typography;
@@ -28,6 +28,14 @@ const MODULES = [
     description: 'Create and manage system users, assign roles and control site-level forecast access.',
     icon: <AuditOutlined style={{ fontSize: 32, color: '#722ed1' }} />,
     path: '/admin/users',
+    available: true,
+  },
+  {
+    key: 'currency-rates',
+    title: 'Currency Conversion Rates',
+    description: 'Maintain monthly currency conversion rates in an editable grid. Add months as rows and currencies as columns.',
+    icon: <DollarOutlined style={{ fontSize: 32, color: '#13c2c2' }} />,
+    path: '/admin/currency-rates',
     available: true,
   },
   {
