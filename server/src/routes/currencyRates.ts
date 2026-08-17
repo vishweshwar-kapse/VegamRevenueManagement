@@ -61,15 +61,40 @@ router.put(
 
       const currencies: string[] = req.body.currencies.map((c: string) => c.trim().toUpperCase());
       const rows = (req.body.rows || []).map((r: any) => {
-        // Keep only values for currencies that are still columns, and drop blanks.
-        const rates: Record<string, number> = {};
-        for (const cur of currencies) {
-          const v = r.rates?.[cur];
-          if (v !== undefined && v !== null && v !== '' && !Number.isNaN(Number(v))) {
-            rates[cur] = Number(v);
+        const normalizedRates: Record<string, Record<string, number>> = {};
+
+        for (const fromCur of currencies) {
+          const fromValues = r.rates?.[fromCur];
+          const nextRates: Record<string, number> = {};
+
+          for (const toCur of currencies) {
+            if (fromCur === toCur) {
+              nextRates[toCur] = 1;
+              continue;
+            }
+
+            const value = fromValues?.[toCur];
+            if (value === undefined || value === null || value === '') {
+              continue;
+            }
+
+            const parsed = Number(value);
+            const isValid = Number.isFinite(parsed) && parsed > 0 && /^\d+(\.\d{1,2})?$/.test(String(value));
+            if (!isValid) {
+              res.status(400).json({
+                success: false,
+                message: `Invalid rate for ${fromCur} -> ${toCur}. Use a positive value with up to two decimal places.`,
+              });
+              return;
+            }
+
+            nextRates[toCur] = Number(parsed.toFixed(2));
           }
+
+          normalizedRates[fromCur] = nextRates;
         }
-        return { month: r.month, year: r.year, rates };
+
+        return { month: r.month, year: r.year, rates: normalizedRates };
       });
 
       const grid = await getOrCreateGrid();

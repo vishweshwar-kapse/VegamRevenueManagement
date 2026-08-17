@@ -4,7 +4,7 @@ import { ApiResponse } from '@/types';
 export interface RateRow {
   month: number; // 1–12
   year: number;
-  rates: Record<string, number>; // currency code → value
+  rates: Record<string, Record<string, number>>; // from currency → { to currency: value }
 }
 
 export interface CurrencyRateGrid {

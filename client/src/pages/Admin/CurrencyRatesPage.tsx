@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
   Card, Table, Button, Typography, Space, InputNumber, Select, Popover,
-  Popconfirm, Tooltip, Tag, message, Grid, Empty,
+  Popconfirm, Tooltip, Tag, message, Grid, Empty, Input,
 } from 'antd';
 import {
-  PlusOutlined, DeleteOutlined, SaveOutlined, CalendarOutlined,
+  PlusOutlined, DeleteOutlined, SaveOutlined, CalendarOutlined, EditOutlined,
 } from '@ant-design/icons';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { currencyRatesApi, RateRow } from '@/api/currencyRates';
@@ -24,6 +24,49 @@ const DEFAULT_START = { month: 4, year: 2026 }; // April 2026
 
 const monthLabel = (r: { month: number; year: number }) =>
   `${MONTH_NAMES[r.month - 1]} ${r.year}`;
+
+const buildEmptyRates = (currencies: string[]) => {
+  const rates = currencies.reduce<Record<string, Record<string, number>>>((acc, cur) => {
+    acc[cur] = {};
+    return acc;
+  }, {});
+
+  currencies.forEach((cur) => {
+    rates[cur][cur] = 1;
+  });
+
+  return rates;
+};
+
+const normalizeRatesForCurrencies = (
+  rates: Record<string, Record<string, number>> | undefined,
+  currencies: string[]
+) => {
+  const normalized = currencies.reduce<Record<string, Record<string, number>>>((acc, fromCur) => {
+    acc[fromCur] = {};
+    return acc;
+  }, {});
+
+  currencies.forEach((fromCur) => {
+    const existing = rates?.[fromCur] || {};
+    currencies.forEach((toCur) => {
+      if (fromCur === toCur) {
+        normalized[fromCur][toCur] = 1;
+      } else if (existing[toCur] !== undefined && existing[toCur] !== null) {
+        normalized[fromCur][toCur] = existing[toCur];
+      }
+    });
+  });
+
+  return normalized;
+};
+
+const getCellValue = (rates: Record<string, Record<string, number>> | undefined, fromCur: string, toCur: string) => {
+  const fromRates = rates?.[fromCur];
+  if (!fromRates) return null;
+  if (fromCur === toCur) return 1;
+  return fromRates[toCur] ?? null;
+};
 
 // The calendar month immediately following the last row in the grid.
 const nextMonthAfter = (rows: RateRow[]) => {
@@ -45,7 +88,9 @@ export default function CurrencyRatesPage() {
   const [rows, setRows] = useState<RateRow[]>([]);
   const [dirty, setDirty] = useState(false);
   const [addCurOpen, setAddCurOpen] = useState(false);
+  const [manageCurOpen, setManageCurOpen] = useState(false);
   const [pendingCur, setPendingCur] = useState<string | undefined>();
+  const [currencyDrafts, setCurrencyDrafts] = useState<Record<string, string>>({});
 
   const { data, isLoading } = useQuery({
     queryKey: ['currency-rates'],
@@ -56,8 +101,29 @@ export default function CurrencyRatesPage() {
   useEffect(() => {
     const grid = (data?.data as any)?.data;
     if (grid) {
-      setCurrencies(grid.currencies || []);
-      setRows((grid.rows || []).map((r: RateRow) => ({ ...r, rates: { ...r.rates } })));
+      const nextCurrencies = grid.currencies || [];
+      setCurrencies(nextCurrencies);
+      const drafts: Record<string, string> = {};
+      nextCurrencies.forEach((cur: string) => {
+        drafts[cur] = cur;
+      });
+      setCurrencyDrafts(drafts);
+      setRows(
+        (grid.rows || []).map((r: RateRow) => ({
+          ...r,
+          rates: normalizeRatesForCurrencies(
+            Object.fromEntries(
+              Object.entries(r.rates || {}).map(([fromCur, values]) => [
+                fromCur,
+                Object.fromEntries(
+                  Object.entries(values || {}).filter(([, value]) => value !== undefined && value !== null)
+                ),
+              ])
+            ),
+            nextCurrencies
+          ),
+        }))
+      );
       setDirty(false);
     }
   }, [data]);
@@ -83,21 +149,33 @@ export default function CurrencyRatesPage() {
 
   // ─── Editing handlers ─────────────────────────────────────────────────────────
 
-  const updateCell = (rowIndex: number, cur: string, value: number | null) => {
+  const updateCell = (rowIndex: number, fromCur: string, toCur: string, value: number | null) => {
+    if (fromCur === toCur) {
+      return;
+    }
+
     setRows((prev) => {
       const next = prev.map((r) => ({ ...r, rates: { ...r.rates } }));
+      const currentRow = next[rowIndex];
+      const currentFromRates = { ...(currentRow.rates?.[fromCur] || {}) };
+
       if (value === null || value === undefined) {
-        delete next[rowIndex].rates[cur];
+        delete currentFromRates[toCur];
       } else {
-        next[rowIndex].rates[cur] = value;
+        currentFromRates[toCur] = value;
       }
+
+      currentRow.rates = {
+        ...currentRow.rates,
+        [fromCur]: currentFromRates,
+      };
       return next;
     });
     setDirty(true);
   };
 
   const addMonth = () => {
-    setRows((prev) => [...prev, { ...nextMonthAfter(prev), rates: {} }]);
+    setRows((prev) => [...prev, { ...nextMonthAfter(prev), rates: buildEmptyRates(currencies) }]);
     setDirty(true);
   };
 
@@ -108,101 +186,185 @@ export default function CurrencyRatesPage() {
 
   const addCurrency = () => {
     if (!pendingCur) return;
-    setCurrencies((prev) => [...prev, pendingCur]);
+    const nextCurrency = pendingCur.trim().toUpperCase();
+    const nextCurrencies = currencies.includes(nextCurrency) ? currencies : [...currencies, nextCurrency];
+
+    setCurrencies(nextCurrencies);
+    setCurrencyDrafts((prev) => ({ ...prev, [nextCurrency]: nextCurrency }));
+    setRows((prev) =>
+      prev.map((row) => ({
+        ...row,
+        rates: normalizeRatesForCurrencies(
+          {
+            ...row.rates,
+            [nextCurrency]: {
+              ...(row.rates?.[nextCurrency] || {}),
+              [nextCurrency]: 1,
+            },
+          },
+          nextCurrencies
+        ),
+      }))
+    );
     setPendingCur(undefined);
     setAddCurOpen(false);
     setDirty(true);
   };
 
-  const removeCurrency = (cur: string) => {
-    setCurrencies((prev) => prev.filter((c) => c !== cur));
+  const renameCurrency = (oldCur: string, newCur: string) => {
+    const normalized = newCur.trim().toUpperCase();
+    if (!normalized) {
+      message.error('Currency code cannot be empty');
+      return;
+    }
+    if (normalized !== oldCur && currencies.includes(normalized)) {
+      message.error('A currency with this code already exists');
+      return;
+    }
+
+    const nextCurrencies = currencies.map((cur) => (cur === oldCur ? normalized : cur));
+    setCurrencies(nextCurrencies);
+    setCurrencyDrafts((prev) => ({ ...prev, [normalized]: normalized, [oldCur]: normalized }));
     setRows((prev) =>
-      prev.map((r) => {
-        const rates = { ...r.rates };
-        delete rates[cur];
-        return { ...r, rates };
-      })
+      prev.map((row) => ({
+        ...row,
+        rates: normalizeRatesForCurrencies(
+          Object.fromEntries(
+            Object.entries(row.rates || {}).map(([fromCur, values]) => {
+              const nextFromCur = fromCur === oldCur ? normalized : fromCur;
+              const renamedValues = Object.fromEntries(
+                Object.entries(values || {}).map(([toCur, value]) => [
+                  toCur === oldCur ? normalized : toCur,
+                  value,
+                ])
+              );
+              return [nextFromCur, renamedValues];
+            })
+          ),
+          nextCurrencies
+        ),
+      }))
     );
     setDirty(true);
+    message.success(`Currency updated to ${normalized}`);
   };
 
-  // ─── Columns ──────────────────────────────────────────────────────────────────
+  const removeCurrency = (cur: string) => {
+    if (currencies.length <= 1) {
+      message.error('At least one currency must remain');
+      return;
+    }
 
-  const columns: any[] = [
-    {
-      title: 'Month',
-      dataIndex: 'month',
-      key: 'month',
-      fixed: 'left' as const,
-      width: 150,
-      render: (_: unknown, r: RateRow) => (
-        <Space size={6}>
-          <CalendarOutlined style={{ color: '#8c8c8c' }} />
-          <Text strong style={{ fontSize: 13 }}>{monthLabel(r)}</Text>
-        </Space>
-      ),
-    },
-    ...currencies.map((cur) => ({
-      title: (
-        <Space size={4}>
-          <span>{cur}</span>
-          {canEdit && (
-            <Popconfirm
-              title={`Remove ${cur} column?`}
-              description="Values entered for this currency will be discarded."
-              onConfirm={() => removeCurrency(cur)}
-              okText="Remove"
-              okButtonProps={{ danger: true }}
-            >
-              <Button
-                type="text"
-                size="small"
-                danger
-                icon={<DeleteOutlined style={{ fontSize: 11 }} />}
-                style={{ padding: '0 4px' }}
-              />
-            </Popconfirm>
-          )}
-        </Space>
-      ),
-      dataIndex: cur,
-      key: cur,
-      width: 150,
-      render: (_: unknown, r: RateRow, index: number) => (
-        <InputNumber
-          value={r.rates[cur] ?? null}
-          onChange={(v) => updateCell(index, cur, v as number | null)}
-          disabled={!canEdit}
-          placeholder="—"
-          min={0}
-          step={0.01}
-          controls={false}
-          style={{ width: '100%' }}
-        />
-      ),
-    })),
-  ];
-
-  if (canEdit) {
-    columns.push({
-      title: '',
-      key: 'actions',
-      fixed: 'right' as const,
-      width: 50,
-      render: (_: unknown, __: RateRow, index: number) => (
-        <Tooltip title="Remove month">
-          <Popconfirm
-            title="Remove this month?"
-            onConfirm={() => removeRow(index)}
-            okText="Remove"
-            okButtonProps={{ danger: true }}
-          >
-            <Button type="text" size="small" danger icon={<DeleteOutlined />} />
-          </Popconfirm>
-        </Tooltip>
-      ),
+    const nextCurrencies = currencies.filter((c) => c !== cur);
+    setCurrencies(nextCurrencies);
+    setRows((prev) =>
+      prev.map((row) => ({
+        ...row,
+        rates: normalizeRatesForCurrencies(
+          Object.fromEntries(
+            Object.entries(row.rates || {})
+              .filter(([fromCur]) => fromCur !== cur)
+              .map(([fromCur, values]) => [
+                fromCur,
+                Object.fromEntries(
+                  Object.entries(values || {}).filter(([toCur]) => toCur !== cur)
+                ),
+              ])
+          ),
+          nextCurrencies
+        ),
+      }))
+    );
+    setCurrencyDrafts((prev) => {
+      const next = { ...prev };
+      delete next[cur];
+      return next;
     });
-  }
+    setDirty(true);
+    message.success(`Currency ${cur} removed`);
+  };
+
+  const monthTables = useMemo(() => {
+    if (currencies.length === 0) {
+      return null;
+    }
+
+    return rows.map((row, rowIndex) => {
+      const dataSource = currencies.map((toCur) => ({ key: toCur, toCur }));
+
+      const columns: any[] = [
+        {
+          title: <Text strong>Currency</Text>,
+          dataIndex: 'toCur',
+          key: 'toCur',
+          width: 130,
+          fixed: 'left' as const,
+          render: (value: string) => <Text strong>{value}</Text>,
+        },
+        ...currencies.map((fromCur) => ({
+          title: <span>To {fromCur}</span>,
+          key: fromCur,
+          width: 140,
+          render: (_: unknown, record: { toCur: string }) => {
+            const isDiagonal = fromCur === record.toCur;
+            return (
+              <InputNumber
+                value={getCellValue(rows[rowIndex].rates, fromCur, record.toCur) ?? null}
+                onChange={(value) => updateCell(rowIndex, fromCur, record.toCur, value as number | null)}
+                disabled={!canEdit || isDiagonal}
+                placeholder="—"
+                min={0.01}
+                precision={2}
+                step={0.01}
+                controls={false}
+                style={{ width: '100%' }}
+              />
+            );
+          },
+        })),
+      ];
+
+      return (
+        <Card
+          key={`${row.year}-${row.month}`}
+          size="small"
+          title={
+            <Space size={6}>
+              <CalendarOutlined style={{ color: '#8c8c8c' }} />
+              <span>{monthLabel(row)}</span>
+            </Space>
+          }
+          extra={
+            canEdit && (
+              <Tooltip title="Remove month">
+                <Popconfirm
+                  title="Remove this month?"
+                  onConfirm={() => removeRow(rowIndex)}
+                  okText="Remove"
+                  okButtonProps={{ danger: true }}
+                >
+                  <Button type="text" size="small" danger icon={<DeleteOutlined />} />
+                </Popconfirm>
+              </Tooltip>
+            )
+          }
+          style={{ marginBottom: 12 }}
+        >
+          <Table
+            dataSource={dataSource}
+            columns={columns}
+            rowKey="key"
+            pagination={false}
+            size="small"
+            scroll={{ x: 160 + currencies.length * 140 }}
+            locale={{
+              emptyText: <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="No currencies added yet" />,
+            }}
+          />
+        </Card>
+      );
+    });
+  }, [canEdit, currencies, rows]);
 
   const addCurrencyContent = (
     <Space direction="vertical" style={{ width: 220 }}>
@@ -224,14 +386,41 @@ export default function CurrencyRatesPage() {
     </Space>
   );
 
+  const manageCurrencyContent = (
+    <Space direction="vertical" style={{ width: 280 }}>
+      {currencies.map((cur) => (
+        <div key={cur} style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <Input
+            size="small"
+            value={currencyDrafts[cur] || cur}
+            onChange={(e) => setCurrencyDrafts((prev) => ({ ...prev, [cur]: e.target.value }))}
+            style={{ flex: 1 }}
+          />
+          <Button size="small" type="primary" onClick={() => renameCurrency(cur, currencyDrafts[cur] || cur)}>
+            Save
+          </Button>
+          <Popconfirm
+            title={`Remove ${cur}?`}
+            description="This will delete all values for this currency from every month."
+            onConfirm={() => removeCurrency(cur)}
+            okText="Remove"
+            okButtonProps={{ danger: true }}
+          >
+            <Button size="small" danger icon={<DeleteOutlined />} />
+          </Popconfirm>
+        </div>
+      ))}
+    </Space>
+  );
+
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16, flexWrap: 'wrap', gap: 8 }}>
         <div>
           <Title level={isMobile ? 5 : 4} style={{ margin: 0 }}>Currency Conversion Rates</Title>
           <Text type="secondary" style={{ fontSize: 13 }}>
-            Maintain the monthly conversion rate for each currency. Add a month to
-            extend the table, or add a currency column.
+            Maintain the monthly conversion rate between currencies. Add a month to
+            extend the matrix, or add a currency to expand the rows and columns.
           </Text>
         </div>
         {canEdit && (
@@ -251,23 +440,22 @@ export default function CurrencyRatesPage() {
       </div>
 
       <Card size="small" styles={{ body: { padding: 0 } }}>
-        <Table
-          dataSource={rows.map((r, i) => ({ ...r, _key: `${r.year}-${r.month}-${i}` }))}
-          columns={columns}
-          rowKey="_key"
-          loading={isLoading}
-          pagination={false}
-          size="small"
-          scroll={{ x: 150 + currencies.length * 150 + 50 }}
-          locale={{
-            emptyText: (
+        {isLoading ? (
+          <div style={{ padding: 16 }}>
+            <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="Loading rates" />
+          </div>
+        ) : (
+          <div style={{ padding: 12 }}>
+            {rows.length === 0 ? (
               <Empty
                 image={Empty.PRESENTED_IMAGE_SIMPLE}
                 description="No months added yet"
               />
-            ),
-          }}
-        />
+            ) : (
+              monthTables
+            )}
+          </div>
+        )}
 
         {canEdit && (
           <div style={{ display: 'flex', gap: 8, padding: 12, borderTop: '1px solid #f0f0f0', flexWrap: 'wrap' }}>
@@ -280,13 +468,25 @@ export default function CurrencyRatesPage() {
               trigger="click"
               placement="bottomLeft"
               content={addCurrencyContent}
-              title="Add currency column"
+              title="Add currency"
             >
               <Button
                 icon={<PlusOutlined />}
                 disabled={availableCurrencies.length === 0}
               >
                 Add Currency
+              </Button>
+            </Popover>
+            <Popover
+              open={manageCurOpen}
+              onOpenChange={(o) => { setManageCurOpen(o); if (!o) setCurrencyDrafts(currencies.reduce<Record<string, string>>((acc, cur) => { acc[cur] = cur; return acc; }, {})); }}
+              trigger="click"
+              placement="bottomLeft"
+              content={manageCurrencyContent}
+              title="Manage currencies"
+            >
+              <Button icon={<EditOutlined />}>
+                Edit Currencies
               </Button>
             </Popover>
           </div>

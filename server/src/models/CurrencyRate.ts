@@ -1,16 +1,20 @@
 import mongoose, { Document, Schema } from 'mongoose';
 
-// A single monthly row in the conversion grid. `rates` maps a currency code
-// (column) to the conversion value the user entered for that month.
+export interface IRateEntry {
+  [toCurrency: string]: number;
+}
+
+// A single monthly row in the conversion grid. `rates` maps a from-currency
+// to a map of to-currency conversion values entered for that month.
 export interface IRateRow {
   month: number; // 1–12
   year: number;
-  rates: Map<string, number>;
+  rates: Record<string, IRateEntry>;
 }
 
 // The grid is a singleton — one document holds the whole editable matrix:
 //   columns  → `currencies` (ordered list of currency codes)
-//   rows     → `rows` (one per month, each with a rates map)
+//   rows     → `rows` (one per month, each with a from/to rates map)
 export interface ICurrencyRateGrid extends Document {
   currencies: string[];
   rows: IRateRow[];
@@ -22,8 +26,8 @@ export interface ICurrencyRateGrid extends Document {
 const RateRowSchema = new Schema<IRateRow>(
   {
     month: { type: Number, required: true, min: 1, max: 12 },
-    year:  { type: Number, required: true },
-    rates: { type: Map, of: Number, default: {} },
+    year: { type: Number, required: true },
+    rates: { type: Schema.Types.Mixed, default: {} },
   },
   { _id: false }
 );
