@@ -12,6 +12,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useCanViewCashflow } from '@/store/authStore';
 import { dashboardApi } from '@/api/forecasts';
 import { DashboardSummary } from '@/types';
+import { fmt } from '@/utils/format';
 
 const { Title, Text } = Typography;
 const { useBreakpoint } = Grid;
@@ -28,12 +29,6 @@ function getFYOptions(): string[] {
 }
 const FY_OPTIONS = getFYOptions();
 const CURRENT_FY = FY_OPTIONS[1];
-
-const fmt = (v: number) => {
-  if (v >= 1_000_000) return `${(v / 1_000_000).toFixed(2)}M`;
-  if (v >= 1_000) return `${(v / 1_000).toFixed(0)}K`;
-  return v.toLocaleString();
-};
 
 const SeverityIcon = ({ severity }: { severity: string }) => {
   if (severity === 'critical') return <ExclamationCircleOutlined style={{ color: '#ff4d4f' }} />;
